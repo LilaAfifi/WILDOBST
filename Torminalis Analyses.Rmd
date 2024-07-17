@@ -1,0 +1,1627 @@
+---
+title: "Torminalis Analyses"
+output: html_document
+date: "2024-05-29"
+---
+
+```{r}
+#Cleaning ST Data#
+
+library(zoo)
+library(reshape2)
+library(tidyverse)
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+plate1 <- read.csv('Plate 1.csv', header = TRUE, stringsAsFactors = FALSE)
+plate234 <- read.csv('Plate 234.csv', header = TRUE, stringsAsFactors = FALSE)
+last <- read.csv('Plate Last.csv', header = TRUE, stringsAsFactors = FALSE)
+merged <- full_join(plate1, plate234, by = NULL)
+df <- full_join(merged, last, by = NULL)
+wildobst_all <- read.csv('I:/Lila Afifi/WILDOBST General/WILDOBST_Full_Data.csv',
+                         header = TRUE, stringsAsFactors = FALSE)
+#REMOVE EXTRA LETTERS
+df$Sample.ID <- sub("_.*", "", df$Sample.ID)
+plate1$Sample.ID <- sub("_.*", "", plate1$Sample.ID)
+plate234$Sample.ID <- sub("_.*", "", plate234$Sample.ID)
+merged <- full_join(plate1, plate234, by = NULL)
+last$Sample.ID <- sub("_.*", "", last$Sample.ID)
+df <- full_join(merged, last, by = NULL)
+
+#SUBSET AND ADD LATITUDE, LONGITUDE, AND CADASTRAL CODE TO DF
+wildobst_subset <- wildobst_all %>% select(Sample.ID, Cadastral.Code, Latitude, Longitude)
+new_df <- left_join(df, wildobst_subset, by = "Sample.ID")
+sum(is.na(new_df$Latitude))
+#write.csv(new_df, file = "ST_AlleleReport_All.csv", row.names = FALSE)
+all <- read.csv('ST_AlleleReport_All.csv', header = TRUE, stringsAsFactors = FALSE)
+new_df <- left_join(all, wildobst_subset, by = "Sample.ID")
+sum(is.na(new_df$Latitude))
+#write.csv(new_df, file = "ST_AlleleReport_All.csv", row.names = FALSE)
+
+################################################################################
+
+#ADD ALL ECOLOGICAL DATA TO GENOTYPES FILE
+
+genotypes <- read.csv('ST_Genotypes_All.csv', header = TRUE, stringsAsFactors = FALSE)
+wildobst <- read.csv('I:/Lila Afifi/WILDOBST General/WILDOBST_Full_Data.csv', header = TRUE, stringsAsFactors = FALSE)
+subset <- wildobst %>% select(Sample.ID, Latitude, Longitude, Forest.Type, BHD..cm., Crown.Coverage, Height..m., Stemform, Vitality)
+genotypes <- left_join(genotypes, subset, by = "Sample.ID")
+#write.csv(genotypes, file = "ST_Genotypes_All.csv", row.names = FALSE)
+haps <- read.csv('ST_rps_haplotypes.csv', header = TRUE, stringsAsFactors = FALSE)
+subset <- haps %>% select(Sample.ID, rps_16pm2)
+genotypes <- left_join(genotypes, subset, by = "Sample.ID")
+#write.csv(genotypes, file = "ST_Genotypes_All.csv", row.names = FALSE)
+
+################################################################################
+
+#RANDOMLY SELECT 10/POP FOR MORE FINE SCALE STRUCTURE ANALYSIS
+
+library(dplyr)
+df <- read.csv('ST_Wild_NoSmallPops_Fragments.csv', header = TRUE, stringsAsFactors = FALSE)
+
+# Select 10 random samples per population
+set.seed(123) # For reproducibility
+sampled_df <- df %>%
+  group_by(Cluster.Small) %>%
+  sample_n(10, replace = TRUE) # Use replace = TRUE if there are fewer than 10 samples per population
+
+# Check the resulting sampled data
+print(sampled_df)
+#write.csv(sampled_df, file = "ST_10perPop.csv", row.names = FALSE)
+
+################################################################################
+
+#RANDOMLY SELECT 10/POP FOR MORE FINE SCALE STRUCTURE ANALYSIS
+
+library(dplyr)
+df <- read.csv('ST_NoSmallPops_Fragments.csv', header = TRUE, stringsAsFactors = FALSE)
+
+# Select 10 random samples per population
+set.seed(123) # For reproducibility
+sampled_df <- df %>%
+  group_by(Cluster.Small) %>%
+  sample_n(10, replace = TRUE) # Use replace = TRUE if there are fewer than 10 samples per population
+
+# Check the resulting sampled data
+print(sampled_df)
+#write.csv(sampled_df, file = "ST_NoSmallPops_10perPop.csv", row.names = FALSE)
+
+################################################################################
+
+#JOIN DATA
+
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+library(tidyverse)
+nosmallpops <- read.csv("I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files/ST_STRUCTURE_3Clusters_NoSmallPops.csv", header = TRUE, stringsAsFactors = FALSE)
+genotypesall <- read.csv("I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files/ST_Genotypes_All_UpdatedLocations.csv", header = TRUE, stringsAsFactors = FALSE)
+
+subset <- genotypesall %>% select(Sample.ID, Latitude, Longitude, Population, Region)
+nosmallpops <- left_join(nosmallpops, subset, by = "Sample.ID")
+#write.csv(nosmallpops, file = "ST_STRUCTURE_3Clusters_NoSmallPops.csv", row.names = FALSE)
+```
+
+```{r}
+#Elbow Method Clustering#
+
+#load packages
+require(cluster)
+require(tidyverse)
+library(stats)
+#install.packages("factoextra")
+library(factoextra)
+library(tmap)
+#update.packages("Rtools")
+#install.packages("maps")
+#install.packages("mapdata")
+library(maps)
+library(mapdata)
+#install.packages("terra")
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+alleles <- read.csv('ST_Wild_Locations.csv', header = TRUE, stringsAsFactors = FALSE)
+
+#check the data type and dimensions of the matrix
+class(alleles)
+dim(alleles)
+sum(is.na(alleles))
+#alleles <- na.omit(alleles)
+#sum(is.na(alleles))
+num_samples <- nrow(alleles[, c(3,4)])
+
+#determine the optimal number of clusters using the elbow (aka. EVANNO) method
+set.seed(17)
+wss <- sapply(1:10, function(k) kmeans(alleles[, c(8,33)], k)$tot.withinss)
+plot(1:10, wss, type="b", xlab="Number of clusters", ylab="Within groups sum of squares")
+
+#specify the number of clusters you want to create
+num_clusters_st <- 6
+
+#set seed
+set.seed(17)
+
+#perform clustering
+kmeans_result_st <- kmeans(alleles[,c(8,33)], centers = num_clusters_st)
+#print the cluster assignments for each sample
+kmeans_result_st$cluster
+
+#add the cluster assignment to the original data
+alleles$cluster <- kmeans_result_st$cluster
+dim(kmeans_result_st$cluster)
+table(alleles$cluster)
+
+#MAP CLUSTERS ON AUSTRIA
+library(ggplot2)
+austria_map <- map_data("world", "Austria")
+ggplot(alleles, aes(x=Longitude, y=Latitude, color=factor(cluster))) +
+  geom_point() +
+  ggtitle(paste0("K-means Clustering (k=", num_clusters_st, ")")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_polygon(data = austria_map, aes(x = long, y = lat, group = group), fill = NA, color = "black")
+
+overten <- read.csv("ST_Genotypes_NoSmallPops.csv", header = TRUE, stringsAsFactors = FALSE)
+library(ggplot2)
+austria_map <- map_data("world", "Austria")
+ggplot(overten, aes(x=Longitude, y=Latitude, color = factor(overten$Planted))) +
+  geom_point() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_polygon(data = austria_map, aes(x = long, y = lat, group = group), fill = NA, color = "black")
+```
+
+```{r}
+#PCA and DAPC#
+
+library(adegenet)
+library(poppr)
+library(dplyr)
+library(hierfstat)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+library(tidyverse)
+#install.packages("adespatial")
+library(adespatial)
+#install.packages("MASS")
+library(MASS)
+library(spdep)
+library(scales)
+
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+st_genotypes <- read.csv("ST_Genotypes_NoSmallPops.csv", header = TRUE, stringsAsFactors = FALSE)
+str(st_genotypes)
+
+# Subset genotypes of st_genotypes
+geno = st_genotypes[, 7:14]
+ind = as.character(st_genotypes$Sample.ID)
+site = as.character(st_genotypes$Population)
+reg = as.character(st_genotypes$Region)
+lat = as.numeric(st_genotypes$Latitude)
+long = as.numeric(st_genotypes$Longitude)
+st_genind = df2genind(geno, ploidy = 2, ind.names = ind, pop = site, ncode = 6)
+st_genind$tab[1:5, 1:10]
+attr(st_genind, "reg") <- reg
+attr(st_genind, "lat") <- lat
+attr(st_genind, "long") <- long
+retrieved_reg <- attr(st_genind, "reg")
+st_genind
+popNames(st_genind)
+locmiss_st = propTyped(st_genind, by = "loc")
+locmiss_st[which(locmiss_st < 0.80)]
+barplot(locmiss_st, ylim = c(0,1), ylab = "Complete genotypes (proportion)", xlab = "Locus", las = 2, cex.names = 0.7)
+indmiss_st = propTyped(st_genind, by = "ind")
+indmiss_st[ which(indmiss_st < 0.80) ]
+st_genind = missingno(st_genind, type = "geno", cutoff = 0.20)
+mlg(st_genind) ##mlg = multilocus genotypes
+#############################
+# Number of Individuals:  917 
+# Number of MLG:  910 
+#############################
+dups_st = mlg.id(st_genind)
+for (i in dups_st){ # for each element in the list object
+  if (length(dups_st[i]) > 1){ # if the length is greater than 1
+    print(i) # print individuals that are duplicates
+  }
+}
+# Create a vector of individuals to remove
+st_dups = c("Alk7", "Alk11", "Alk3", "Alk15", "Alk10", "Alk20", "BBOKU138t")
+# Create a vector of individual names without the duplicates
+st_Nodups = indNames(st_genind)[! indNames(st_genind) %in% st_dups]
+# Create a new genind object without the duplicates
+st_genind = st_genind[st_Nodups, ]
+# Re-print the number of multilocus genotypes
+mlg(st_genind)
+#############################
+# Number of Individuals:  910 
+# Number of MLG:  910 
+#############################
+isPoly(st_genind) %>% summary
+#############################
+#   Mode    TRUE 
+# logical      8 
+#############################
+st_genind
+# /// GENIND OBJECT /////////
+#   
+#   // 910 individuals; 8 loci; 1,035 alleles; size: 3.8 Mb
+# 
+# // Basic content
+# @tab:  910 x 1035 matrix of allele counts
+# @loc.n.all: number of alleles per locus (range: 55-193)
+# @loc.fac: locus factor for the 1035 columns of @tab
+# @all.names: list of allele names for each locus
+# @ploidy: ploidy of each individual  (range: 2-2)
+# @type:  codom
+# @call: .local(x = x, i = i, j = j, drop = drop)
+
+# // Optional content
+# @pop: population of each individual (group size range: 10-314)
+table(st_genind$loc.fac)
+# CH01h01 CH02c09    MSS1    MSS5 CH01d09   MSS16  NZ05g8 CH04e03
+#     150      62     113      55     166     192     193     104
+summary(st_genind$pop)
+#   Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald
+#                66                13                11                34
+# Ernstbrunner Wald       Wullersdorf      Kirchen Wald      Leopoldsberg
+#                12                10                19                12
+#             Lainz       Pottenstein         Emmerberg           Loretto
+#               314               144                10                19
+#        Zagersdorf    Fidischer Wald        Steiermark         Konigshof
+#                27                39                34                38
+#     Petzenkirchen             Weyer           Alkoven               PPK
+#                30                10                20                32 
+#        Vorarlberg 
+#                16 
+private_alleles(st_genind) %>% apply(MARGIN = 1, FUN = sum)
+#   Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald
+#                36                 3                 2                17
+# Ernstbrunner Wald       Wullersdorf      Kirchen Wald      Leopoldsberg
+#                 1                 3                 7                 5
+#             Lainz       Pottenstein         Emmerberg           Loretto
+#               137                54                 3                15
+#        Zagersdorf    Fidischer Wald        Steiermark         Konigshof
+#                27                39                34                38
+#     Petzenkirchen             Weyer           Alkoven               PPK
+#                80                12                 8                49 
+#        Vorarlberg 
+#                 9 
+allelic.richness(genind2hierfstat(st_genind))$Ar %>%
+  apply(MARGIN = 2, FUN = mean) %>% 
+  round(digits = 3)
+#   Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald 
+#             8.460             7.571             7.584             7.904 
+# Ernstbrunner Wald       Wullersdorf      Kirchen Wald      Leopoldsberg 
+#             7.894             8.125             7.590             7.467 
+#             Lainz       Pottenstein         Emmerberg           Loretto 
+#             8.332             8.426             7.125             8.582 
+#        Zagersdorf    Fidischer Wald        Steiermark         Konigshof 
+#             7.241             7.454             8.593             7.689 
+#     Petzenkirchen             Weyer           Alkoven               PPK 
+#             5.397            10.000             7.026             7.481 
+#        Vorarlberg 
+#             8.305
+allelic.richness(genind2hierfstat(st_genind))$Ar %>%
+  apply(MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x))) %>%
+  round(digits = 2)
+# Hochleithenwald          Bisamberg          Stockerau           Poysdorf  Ernstbrunner Wald 
+# 0.65               0.80               0.51               0.67               0.63 
+# Wullersdorf         Hollabrunn       Leopoldsberg              Lainz        Pottenstein 
+# 0.81               0.61               0.81               0.59               0.48 
+# Emmerberg            Loretto         Zagersdorf     Fidischer Wald Stainz bei Straden 
+# 0.64               0.67               0.48               0.88               0.60 
+# Konigshof      Petzenkirchen              Weyer            Alkoven            Villach 
+# 0.61               1.18               0.98               0.56               0.75 
+# Rons 
+# 0.75 
+basic_st = basic.stats(st_genind, diploid = TRUE)
+perloc = apply(basic_st$perloc, MARGIN = 2, FUN = mean) %>% round(digits = 2)
+perloc
+#   Ho   Hs   Ht  Dst  Htp Dstp  Fst Fstp  Fis Dest 
+# 0.82 0.82 0.87 0.05 0.87 0.05 0.05 0.06 0.01 0.30 
+# WITHOUT PETZENKIRCHEN
+# Ho   Hs   Ht  Dst  Htp Dstp  Fst Fstp  Fis Dest 
+# 0.83 0.83 0.86 0.03 0.87 0.03 0.03 0.04 0.01 0.20 
+Ho_st = apply(basic_st$Ho, MARGIN = 2, FUN = mean, na.rm = TRUE) %>%
+  round(digits = 2)
+Ho_st # Mean observed heterozygosity per site
+#   Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald 
+#              0.86              0.77              0.83              0.81 
+# Ernstbrunner Wald       Wullersdorf      Kirchen Wald      Leopoldsberg 
+#              0.82              0.88              0.88              0.86 
+#             Lainz       Pottenstein         Emmerberg           Loretto 
+#              0.83              0.84              0.82              0.83 
+#        Zagersdorf    Fidischer Wald        Steiermark         Konigshof 
+#              0.78              0.79              0.88              0.78 
+#     Petzenkirchen             Weyer           Alkoven               PPK 
+#              0.55              0.89              0.82              0.79 
+#        Vorarlberg 
+#              0.83
+
+He_st = apply(basic_st$Hs, MARGIN = 2, FUN = mean, na.rm = TRUE) %>%
+  round(digits = 2)
+He_st # Mean expected heterozygosity per site
+#   Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald 
+#              0.86              0.81              0.84              0.83 
+# Ernstbrunner Wald       Wullersdorf      Kirchen Wald      Leopoldsberg 
+#              0.83              0.83              0.84              0.83 
+#             Lainz       Pottenstein         Emmerberg           Loretto 
+#              0.85              0.86              0.79              0.85 
+#        Zagersdorf    Fidischer Wald        Steiermark         Konigshof 
+#              0.81              0.80              0.87              0.83 
+#     Petzenkirchen             Weyer           Alkoven               PPK 
+#              0.59              0.87              0.80              0.82 
+#        Vorarlberg 
+#              0.87
+
+Het_st_df = data.frame(Site = names(Ho_st), Ho = Ho_st, He = He_st) %>%
+  melt(id.vars = "Site") # Create a data.frame of site names, Ho and He and then convert to long format
+
+# Calculate standard errors for Ho and He
+Ho_se <- apply(basic_st$Ho, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x))) %>%
+  round(digits = 2)
+Ho_se
+# Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald Ernstbrunner Wald 
+# 0.02              0.03              0.03              0.04              0.03 
+# Wullersdorf      Kirchen Wald      Leopoldsberg             Lainz       Pottenstein 
+# 0.05              0.02              0.04              0.02              0.03 
+# Emmerberg           Loretto        Zagersdorf    Fidischer Wald        Steiermark 
+# 0.06              0.04              0.02              0.05              0.03 
+# Konigshof     Petzenkirchen             Weyer           Alkoven               PPK 
+# 0.03              0.11              0.05              0.04              0.03 
+# Vorarlberg 
+# 0.05 
+He_se <- apply(basic_st$Hs, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x))) %>%
+  round(digits = 2)
+He_se
+# Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald Ernstbrunner Wald 
+# 0.02              0.02              0.02              0.02              0.02 
+# Wullersdorf      Kirchen Wald      Leopoldsberg             Lainz       Pottenstein 
+# 0.02              0.02              0.03              0.02              0.01 
+# Emmerberg           Loretto        Zagersdorf    Fidischer Wald        Steiermark 
+# 0.03              0.03              0.02              0.04              0.02 
+# Konigshof     Petzenkirchen             Weyer           Alkoven               PPK 
+# 0.02              0.12              0.02              0.02              0.03 
+# Vorarlberg 
+# 0.02 
+
+# Create a data.frame for standard errors
+Het_st_se_df <- data.frame(Site = names(Ho_se), Ho_se = Ho_se, He_se = He_se) %>%
+  melt(id.vars = "Site")
+
+# Merge with original data frame
+#Het_st_df <- merge(Het_st_df, Het_st_se_df, by = "Site")
+
+# Custom theme for ggplot2
+custom_theme = theme(
+  axis.text.x = element_text(size = 10, angle = 90, vjust = 0.5, face = "bold"),
+  axis.text.y = element_text(size = 10),
+  axis.title.y = element_text(size = 12),
+  axis.title.x = element_blank(),
+  axis.line.y = element_line(size = 0.5),
+  legend.title = element_blank(),
+  legend.text = element_text(size = 12),
+  panel.grid = element_blank(),
+  panel.background = element_blank(),
+  plot.title = element_text(hjust = 0.5, size = 15, face="bold")
+)
+# Italic label
+hetlab.o = expression(italic("H")[I])
+hetlab.e = expression(italic("H")[S])
+
+# Define a vector of site labels and their corresponding colors
+# Reorder the levels of the 'Site' factor variable according to your desired order
+Het_st_df$Site <- factor(Het_st_df$Site, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                    "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                    "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                    "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                    "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                    "Rons"))
+
+# ST heterozygosity barplot
+ggplot(data = Het_st_df, aes(x = Site, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_fill_manual(values = c("#53868B", "#bdbdbd"), labels = c(hetlab.o, hetlab.e)) +
+  ylab("Heterozygosity") +
+  #ggtitle("Austrian Elsbeere") +
+  custom_theme
+
+#ggplot(data = Het_st_df, aes(x = Site, y=value.x, fill= variable.x)) +
+#  geom_bar(stat = "identity", position = position_dodge(width = 0.4), color = "black", width = 0.4) +
+#  #geom_errorbar(aes(ymin = Ho - Ho_se, ymax = Ho + Ho_se, fill = variable.y), position = position_dodge(width = 0.9), width = 0.1) +
+#  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+#  scale_fill_manual(values = c(Ho = "#53868B", He = "#bdbdbd"), labels = c(hetlab.o, hetlab.e)) +
+#  ylab("Heterozygosity") +
+#  ggtitle("Austrian Elsbeere") +
+#  custom_theme
+
+apply(basic_st$Fis, MARGIN = 2, FUN = mean, na.rm = TRUE) %>%
+  round(digits = 3)
+#   Hochleithenwald         Bisamberg        Hollabrunn       Klosterwald 
+#             0.000             0.050             0.014             0.027 
+# Ernstbrunner Wald       Wullersdorf      Kirchen Wald      Leopoldsberg 
+#             0.013            -0.052            -0.047            -0.045 
+#             Lainz       Pottenstein         Emmerberg           Loretto 
+#             0.025             0.021            -0.047             0.028 
+#        Zagersdorf    Fidischer Wald        Steiermark         Konigshof 
+#             0.029             0.017            -0.011             0.058 
+#     Petzenkirchen             Weyer           Alkoven               PPK 
+#             0.050            -0.020            -0.019             0.041 
+#        Vorarlberg 
+#             0.046 
+
+apply(basic_st$Fis, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x))) %>%
+  round(digits = 2)
+# Hochleithenwald          Bisamberg          Stockerau           Poysdorf  Ernstbrunner Wald 
+# 0.01               0.03               0.03               0.04               0.01 
+# Wullersdorf         Hollabrunn       Leopoldsberg              Lainz        Pottenstein 
+# 0.04               0.03               0.05               0.00               0.02 
+# Emmerberg            Loretto         Zagersdorf     Fidischer Wald Stainz bei Straden 
+# 0.08               0.02               0.04               0.04               0.02 
+# Konigshof      Petzenkirchen              Weyer            Alkoven            Villach 
+# 0.02               0.04               0.05               0.04               0.02 
+# Rons 
+# 0.05 
+st_fst = genet.dist(st_genind, method = "WC84") %>% round(digits = 2)
+st_fst
+#                   Hochleithenwald Bisamberg Hollabrunn Klosterwald Ernstbrunner Wald
+# Bisamberg                   0.019                                                   
+# Hollabrunn                  0.017     0.002                                         
+# Klosterwald                 0.025     0.014      0.023                              
+# Ernstbrunner Wald           0.025     0.025      0.030       0.016                  
+# Wullersdorf                 0.020     0.024      0.013       0.015             0.007
+# Kirchen Wald                0.014     0.017      0.004       0.030             0.023
+# Leopoldsberg                0.026     0.007      0.008       0.020             0.037
+# Lainz                       0.016     0.003      0.004       0.009             0.017
+# Pottenstein                 0.018     0.016      0.009       0.018             0.024
+# Emmerberg                   0.048     0.038      0.030       0.050             0.035
+# Loretto                     0.017     0.029      0.029       0.033             0.025
+# Zagersdorf                  0.018     0.021      0.035       0.040             0.033
+# Fidischer Wald              0.033     0.035      0.029       0.048             0.041
+# Steiermark                  0.022     0.028      0.025       0.020             0.030
+# Konigshof                   0.011     0.020      0.017       0.017             0.019
+# Petzenkirchen               0.224     0.279      0.272       0.252             0.251
+# Weyer                       0.024     0.021      0.031       0.050             0.067
+# Alkoven                     0.037     0.046      0.042       0.049             0.018
+# PPK                         0.067     0.084      0.067       0.090             0.087
+# Vorarlberg                  0.019     0.032      0.023       0.049             0.051
+#                   Wullersdorf Kirchen Wald Leopoldsberg Lainz Pottenstein Emmerberg
+# Bisamberg                                                                          
+# Hollabrunn                                                                         
+# Klosterwald                                                                        
+# Ernstbrunner Wald                                                                  
+# Wullersdorf                                                                        
+# Kirchen Wald            0.025                                                      
+# Leopoldsberg            0.022        0.017                                         
+# Lainz                   0.010        0.013        0.009                            
+# Pottenstein             0.018        0.018        0.020 0.006                      
+# Emmerberg               0.050        0.032        0.044 0.032       0.024          
+# Loretto                 0.020        0.025        0.047 0.026       0.022     0.047
+# Zagersdorf              0.025        0.019        0.045 0.029       0.034     0.052
+# Fidischer Wald          0.032        0.033        0.051 0.035       0.037     0.057
+# Steiermark              0.028        0.021        0.033 0.020       0.023     0.050
+# Konigshof               0.008        0.018        0.033 0.015       0.020     0.035
+# Petzenkirchen           0.276        0.259        0.264 0.216       0.217     0.283
+# Weyer                   0.052        0.045        0.042 0.030       0.039     0.081
+# Alkoven                 0.038        0.042        0.057 0.035       0.038     0.063
+# PPK                     0.084        0.064        0.068 0.070       0.073     0.114
+# Vorarlberg              0.044        0.032        0.038 0.029       0.034     0.079
+#                   Loretto Zagersdorf Fidischer Wald Steiermark Konigshof Petzenkirchen
+# Bisamberg                                                                             
+# Hollabrunn                                                                            
+# Klosterwald                                                                           
+# Ernstbrunner Wald                                                                     
+# Wullersdorf                                                                           
+# Kirchen Wald                                                                          
+# Leopoldsberg                                                                          
+# Lainz                                                                                 
+# Pottenstein                                                                           
+# Emmerberg                                                                             
+# Loretto                                                                               
+# Zagersdorf          0.015                                                             
+# Fidischer Wald      0.021      0.027                                                  
+# Steiermark          0.025      0.032          0.037                                   
+# Konigshof           0.021      0.022          0.036      0.024                        
+# Petzenkirchen       0.252      0.266          0.263      0.231     0.244              
+# Weyer               0.037      0.043          0.060      0.034     0.038         0.248
+# Alkoven             0.051      0.055          0.058      0.050     0.038         0.277
+# PPK                 0.084      0.088          0.084      0.061     0.090         0.267
+# Vorarlberg          0.033      0.039          0.049      0.033     0.045         0.250
+#                   Weyer Alkoven   PPK
+# Bisamberg                            
+# Hollabrunn                           
+# Klosterwald                          
+# Ernstbrunner Wald                    
+# Wullersdorf                          
+# Kirchen Wald                         
+# Leopoldsberg                         
+# Lainz                                
+# Pottenstein                          
+# Emmerberg                            
+# Loretto                              
+# Zagersdorf                           
+# Fidischer Wald                       
+# Steiermark                           
+# Konigshof                            
+# Petzenkirchen                        
+# Weyer                                
+# Alkoven           0.082              
+# PPK               0.068   0.102      
+# Vorarlberg        0.015   0.059 0.039
+lab_order = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+              "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+              "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+              "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+              "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+              "Rons")
+
+#lab_order = c("Hochleithenwald", "Bisamberg","Hollabrunn","Klosterwald","Ernstbrunner Wald","Wullersdorf","Kirchen Wald", "Leopoldsberg",
+#              "Lainz", "Pottenstein", "Emmerberg", "Loretto", "Zagersdorf", "Fidischer Wald", "Steiermark", "Konigshof",
+#              "Weyer", "Alkoven", "PPK", "Vorarlberg")
+
+fst.mat = as.matrix(st_fst)
+fst.mat1 = fst.mat[lab_order, ]
+fst.mat2 = fst.mat1[, lab_order]
+ind = which(upper.tri(fst.mat2), arr.ind = TRUE)
+fst.df = data.frame(Site1 = dimnames(fst.mat2)[[2]][ind[,2]],
+                    Site2 = dimnames(fst.mat2)[[1]][ind[,1]],
+                    Fst = fst.mat2[ ind ])
+# Keep the order of the levels in the data.frame for plotting
+fst.df$Site1 = factor(fst.df$Site1, levels = unique(fst.df$Site1))
+fst.df$Site2 = factor(fst.df$Site2, levels = unique(fst.df$Site2))
+# Convert minus values to zero
+fst.df$Fst[fst.df$Fst < 0] = 0
+# Print data.frame summary
+fst.df %>% str
+# 'data.frame':	190 obs. of  3 variables:
+# $ Site1: Factor w/ 19 levels "Hollabrunn","Klosterwald",..: 1 2 2 3 3 3 4 4 4 4 ...
+# $ Site2: Factor w/ 19 levels "Bisamberg","Hollabrunn",..: 1 1 2 1 2 3 1 2 3 4 ...
+# $ Fst  : num  0.002 0.014 0.023 0.025 0.03 0.016 0.024 0.013 0.015 0.007 ...
+fst.label = expression(italic("F")[ST])
+mid = max(fst.df$Fst) / 2 # Extract middle Fst value for gradient argument
+ggplot(data = fst.df, aes(x = Site1, y = Site2, fill = Fst))+
+  geom_tile(colour = "black")+
+  geom_text(aes(label = Fst), color="black", size = 3)+
+  scale_fill_gradient2(low = "blue", mid = "pink", high = "red", midpoint = mid, name = fst.label, limits = c(0, max(fst.df$Fst)), breaks = c(0, 0.05, 0.10, 0.15))+
+  scale_x_discrete(expand = c(0,0))+
+  scale_y_discrete(expand = c(0,0), position = "right")+
+  theme(axis.text = element_text(colour = "black", size = 10, face = "bold"),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = -45, hjust = 0),
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "right",
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 10)
+  )
+
+#FST without Petzenkirchen
+#st_genotypes <- subset(st_genotypes, Population != 'Petzenkirchen')
+
+x = tab(st_genind, NA.method = "mean") # Replace missing data with the mean allele frequencies
+pca1 = dudi.pca(x, scannf = FALSE, scale = FALSE, nf = 3)
+percent = pca1$eig/sum(pca1$eig)*100
+barplot(percent, ylab = "Genetic variance explained by eigenvectors (%)", ylim = c(0,12),
+        names.arg = round(percent, 1)) # Analyse how much percent of genetic variance is explained by each axis
+ind_coords = as.data.frame(pca1$li) # Create a data.frame containing individual coordinates
+colnames(ind_coords) = c("Axis1","Axis2","Axis3") # Rename columns of dataframe
+ind_coords$Ind = indNames(st_genind) # Add a column containing individuals
+ind_coords$Site = st_genind$pop # Add a column with the site IDs
+# Calculate centroid (average) position for each population
+centroid = aggregate(cbind(Axis1, Axis2, Axis3) ~ Site, data = ind_coords, FUN = mean)
+# Add centroid coordinates to ind_coords dataframe
+ind_coords = left_join(ind_coords, centroid, by = "Site", suffix = c("",".cen"))
+library(viridisLite)
+cols = viridis(nPop(st_genind)) # Define colour palette
+# Custom x and y labels
+xlab = paste("Axis 1 (", format(round(percent[1], 1), nsmall=1)," %)", sep="")
+ylab = paste("Axis 2 (", format(round(percent[2], 1), nsmall=1)," %)", sep="")
+# Custom theme for ggplot2
+ggtheme = theme(axis.text.y = element_text(colour="black", size=12),
+                axis.text.x = element_text(colour="black", size=12),
+                axis.title = element_text(colour="black", size=12),
+                panel.border = element_rect(colour="black", fill=NA, size=1),
+                panel.background = element_blank(),
+                plot.title = element_text(hjust=0.5, size=15) 
+)
+# Scatter plot axis 1 vs. 2
+ggplot(data = ind_coords, aes(x = Axis1, y = Axis2))+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)+
+  # spider segments
+  geom_segment(aes(xend = Axis1.cen, yend = Axis2.cen, colour = Site), show.legend = FALSE)+
+  # points
+  geom_point(aes(fill = Site), shape = 21, size = 3, show.legend = FALSE)+
+  # centroids
+  geom_label(data = centroid, aes(label = Site, fill = Site), size = 3, show.legend = FALSE)+
+  # colouring
+  scale_fill_manual(values = cols)+
+  scale_colour_manual(values = cols)+
+  # custom labels
+  labs(x = xlab, y = ylab)+
+  ggtitle("Sorbus torminalis PCA1")+
+  # custom theme
+  ggtheme
+#install.packages("devtools")
+#install.packages("factoextra")
+library(devtools)
+library(factoextra)
+# Extract the results for variables and individuals
+get_pca(pca1, element = c("var", "ind"))
+# Extract the results for individuals only
+get_pca_ind(pca1, ...)
+# Extract the results for variables only
+get_pca_var(pca1)
+# Perform cross validation to find the optimal number of PCs to retain in DAPC
+set.seed(123)
+x = tab(st_genind, NA.method = "mean")
+crossval = xvalDapc(x, st_genind$pop, result = "groupMean", xval.plot = TRUE) 
+# Number of PCs with best stats (lower score = better)
+crossval$`Root Mean Squared Error by Number of PCs of PCA`
+# 100       200       300       400       500       600       700       800 
+# 0.8040547 0.7572707 0.7488954 0.7650810 0.7719765 0.7879003 0.8228987 0.9434446 
+crossval$`Number of PCs Achieving Highest Mean Success`
+# [1] "300"
+crossval$`Number of PCs Achieving Lowest MSE`
+# [1] "300"
+numPCs = as.numeric(crossval$`Number of PCs Achieving Lowest MSE`)
+# Run a DAPC using site IDs as priors
+dapc1 = dapc(st_genind, st_genind$pop, n.pca = numPCs, n.da = 3)
+# Analyse how much percent of genetic variance is explained by each axis
+percent = dapc1$eig/sum(dapc1$eig)*100
+barplot(percent, ylab = "Genetic variance explained by eigenvectors (%)", ylim = c(0,60),
+        names.arg = round(percent, 1))
+# Create a data.frame containing individual coordinates
+ind_coords = as.data.frame(dapc1$ind.coord)
+# Rename columns of dataframe
+colnames(ind_coords) = c("Axis1","Axis2","Axis3")
+# Add a column containing individuals
+ind_coords$Ind = indNames(st_genind)
+# Add a column with the site IDs
+ind_coords$Site = st_genind$pop
+# Calculate centroid (average) position for each population
+centroid = aggregate(cbind(Axis1, Axis2, Axis3) ~ Site, data = ind_coords, FUN = mean)
+# Add centroid coordinates to ind_coords dataframe
+ind_coords = left_join(ind_coords, centroid, by = "Site", suffix = c("",".cen"))
+cols = viridis(nPop(st_genind)) # Define colour palette
+# Custom x and y labels
+xlab = paste("Axis 1 (", format(round(percent[1], 1), nsmall=1)," %)", sep="")
+ylab = paste("Axis 2 (", format(round(percent[2], 1), nsmall=1)," %)", sep="")
+# Scatter plot axis 1 vs. 2
+ggplot(data = ind_coords, aes(x = Axis1, y = Axis2))+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)+
+  # spider segments
+  geom_segment(aes(xend = Axis1.cen, yend = Axis2.cen, colour = Site), show.legend = FALSE)+
+  # points
+  geom_point(aes(fill = Site), shape = 21, size = 3, show.legend = FALSE)+
+  # centroids
+  geom_label(data = centroid, aes(label = Site, fill = Site), size = 4, show.legend = FALSE)+
+  # colouring
+  scale_fill_manual(values = cols)+
+  scale_colour_manual(values = cols)+
+  # custom labels
+  labs(x = xlab, y = ylab)+
+  ggtitle("Sorbus torminalis DAPC1")+
+  # custom theme
+  ggtheme
+# Custom x and y labels
+xlab = paste("Axis 2 (", format(round(percent[2], 1), nsmall=1)," %)", sep="")
+ylab = paste("Axis 3 (", format(round(percent[3], 1), nsmall=1)," %)", sep="")
+# Scatter plot axis 1 vs. 2
+ggplot(data = ind_coords, aes(x = Axis2, y = Axis3))+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)+
+  # spider segments
+  geom_segment(aes(xend = Axis2.cen, yend = Axis3.cen, colour = Site), show.legend = FALSE)+
+  # points
+  geom_point(aes(fill = Site), shape = 21, size = 3, show.legend = FALSE)+
+  # centroids
+  geom_label(data = centroid, aes(label = Site, fill = Site), size = 4, show.legend = FALSE)+
+  # colouring
+  scale_fill_manual(values = cols)+
+  scale_colour_manual(values = cols)+
+  # custom labels
+  labs(x = xlab, y = ylab)+
+  ggtitle("Sorbus torminalis DAPC2")+
+  # custom theme
+  ggtheme
+```
+
+```{r}
+#sPCA#
+
+library(adegenet)
+library(poppr)
+library(dplyr)
+library(hierfstat)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+library(tidyverse)
+#install.packages("adespatial")
+library(adespatial)
+#install.packages("MASS")
+library(MASS)
+library(spdep)
+library(rnaturalearthdata)
+library(rnaturalearth)
+library(factoextra)
+library(tmap)
+library(maps)
+library(mapdata)
+#install.packages("splancs")
+library(splancs)
+#install.packages("interp")
+library(interp)
+
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+st_genotypes <- read.csv("ST_Genotypes_NoSmallPops.csv", header = TRUE, stringsAsFactors = FALSE)
+str(st_genotypes)
+
+#WITH PLANTED
+# Subset genotypes of sd_genotypes
+geno = st_genotypes[, 7:14]
+ind = as.character(st_genotypes$Sample.ID)
+site = as.character(st_genotypes$Population)
+reg = as.character(st_genotypes$Region)
+lat = as.numeric(st_genotypes$Latitude)
+long = as.numeric(st_genotypes$Longitude)
+st_genind = df2genind(geno, ploidy = 2, ind.names = ind, pop = site, ncode = 6)
+st_genind$tab[1:5, 1:10]
+attr(st_genind, "reg") <- reg
+attr(st_genind, "lat") <- lat
+attr(st_genind, "long") <- long
+retrieved_reg <- attr(st_genind, "reg")
+st_genind
+
+sum(is.na(st_genind$lat))
+
+st_genpop <- genind2genpop(st_genind)
+##
+## Converting data from a genind to a genpop object...
+##
+## ...done.
+
+# Add latitude and longitude data to genpop object
+st_genpop@other$xy <- cbind(long, lat)  # Combine longitude and latitude into a matrix
+
+Dgen <- dist.genpop(st_genpop,method=2)
+Dgeo <- dist(st_genpop$other$xy)
+#ibd <- mantel.randtest(Dgen,Dgeo)
+
+mySpca <- spca(st_genind,xy = cbind(st_genind$long, st_genind$lat), type=5,d1=0,d2=2,scannf=FALSE)
+
+mySpca
+########################################
+# spatial Principal Component Analysis #
+########################################
+# class: spca
+# $call: spca.genind(obj = st_genind, xy = cbind(st_genind$long, st_genind$lat), 
+#                   scannf = FALSE, type = 5, d1 = 0, d2 = 2)
+#
+# $nfposi: 1 axis-components saved
+# $nfnega: 1 axis-components saved
+# Positive eigenvalues: 0.003085 0.002276 0.0002844 7.304e-05
+# Negative eigenvalues: -0.002329 -0.001475 -0.0002238 -0.0001968 -0.0001939 ...
+# 
+# vector length mode    content    
+# 1 $eig   765    numeric eigenvalues
+#
+# data.frame nrow ncol content                                                 
+# 1 $tab       917  1035 transformed data: optionally centred / scaled           
+# 2 $c1        1035 2    principal axes: scaled vectors of alleles loadings      
+# 3 $li        917  2    principal components: coordinates of entities ('scores')
+# 4 $ls        917  2    lag vector of principal components                      
+# 5 $as        2    2    pca axes onto spca axes                                 
+#
+# $xy: matrix of spatial coordinates
+# $lw: a list of spatial weights (class 'listw')
+#
+# other elements: lw 
+
+barplot(mySpca$eig,main="Eigenvalues of sPCA", col=rep(c("red","grey"),c(1,100)))
+
+barplot(mySpca$eig, main="A variant of the plot\n of sPCA eigenvalues",
+        col=spectral(length(mySpca$eig)))
+legend("topright", fill=spectral(2),
+       leg=c("Global structures", "Local structures"))
+abline(h=0,col="grey")
+
+# Map sPCA results onto Austria
+austria_map <- map_data("world", "Austria")
+
+# Convert sPCA results to a data frame
+spca_df <- data.frame(long = mySpca$xy[,1], lat = mySpca$xy[,2], autocorr = mySpca$li)
+
+# Plot sPCA results with Austria map
+ggplot() +
+  geom_polygon(data = austria_map, aes(x = long, y = lat, group = group), fill = NA, color = "black") +
+  geom_point(data = spca_df, aes(x = long, y = lat, color = autocorr.Axis.1, size = autocorr.Axis.765)) +
+  scale_color_viridis_c(name = "Autocorr Axis 1") +  # Use viridis color scale for continuous data
+  scale_size_continuous(name = "Autocorr Axis 2") +  # Adjust size scale as needed
+  coord_quickmap() +
+  theme_minimal() +
+  labs(title = "sPCA Results on Map of Austria", color = "Spatial Autocorrelation Axis 1", size = "Spatial Autocorrelation Axis 2")
+
+myGtest <- global.rtest(st_genind$tab,mySpca$lw,nperm=9999)
+myGtest
+# Monte-Carlo test
+# Call: global.rtest(X = st_genind$tab, listw = mySpca$lw, nperm = 9999)
+#
+# Observation: 0.002579126 
+#
+# Based on 9999 replicates
+# Simulated p-value: 1e-04 
+# Alternative hypothesis: greater 
+#
+# Std.Obs  Expectation     Variance 
+# 1.428461e+01 1.198015e-03 9.348034e-09 
+
+myLtest <- local.rtest(st_genind$tab,mySpca$lw,nperm=9999)
+myLtest
+# Monte-Carlo test
+# Call: local.rtest(X = st_genind$tab, listw = mySpca$lw, nperm = 99)
+#
+# Observation: 0.003440092 
+#
+# Based on 9999 replicates
+# Simulated p-value: 0.043 
+# Alternative hypothesis: greater 
+#
+# Std.Obs  Expectation     Variance 
+# 2.095644e+00 2.606282e-03 1.583065e-07 
+
+plot(myGtest)
+plot(myLtest)
+plot(mySpca)
+colorplot(mySpca,cex=2,main="colorplot of mySpca, first global score")
+
+x <- other(st_genpop)$xy[,1]
+y <- other(st_genpop)$xy[,2]
+temp <- interp(x, y, mySpca$li[,1], duplicate = TRUE)
+image(temp, col=azur(100))
+points(x,y)
+
+interpX <- seq(min(x),max(x),le=200)
+interpY <- seq(min(y),max(y),le=200)
+temp <- interp(x, y, mySpca$ls[,1], xo=interpX, yo=interpY, duplicate = TRUE)
+image(temp, col=azur(100))
+points(x,y)
+
+myPal <- colorRampPalette(c("firebrick2", "white", "lightslateblue"))
+annot <- function(){
+  title("sPCA - interpolated map of individual scores")
+  points(x,y)
+}
+filled.contour(temp, color.pal=myPal, nlev=50,
+               key.title=title("lagged \nscore 1"), plot.title=annot())
+
+myLoadings <- mySpca$c1[,1]^2
+names(myLoadings) <- rownames(mySpca$c1)
+loadingplot(myLoadings, xlab="Alleles",
+            ylab="Weight of the alleles",
+            main="Contribution of alleles \n to the first sPCA axis")
+
+temp <- loadingplot(myLoadings, threshold=quantile(myLoadings, 0.95),
+                    xlab="Alleles",ylab="Weight of the alleles",
+                    main="Contribution of alleles \n to the first sPCA axis",
+                    fac=st_genpop$loc.fac, cex.fac=0.6)
+
+temp
+# $threshold
+# 95% 
+# 0.004727199 
+#
+# $var.names
+# [1] "CH01h01.126132" "CH01h01.124142" "CH01h01.126142" "CH01h01.126134" "CH01h01.116126"
+# [6] "CH01h01.114134" "CH01h01.116142" "CH01h01.116136" "CH01h01.112114" "CH01h01.116116"
+# [11] "CH02c09.246248" "CH02c09.248253" "CH02c09.248248" "CH02c09.250255" "CH02c09.255255"
+# [16] "MSS1.173181"    "MSS1.181183"    "MSS1.181181"    "MSS1.167181"    "MSS1.173173"   
+# [21] "MSS1.161181"    "MSS1.163163"    "MSS5.128132"    "MSS5.130142"    "MSS5.128138"   
+# [26] "MSS5.132142"    "MSS5.128142"    "MSS5.134134"    "MSS5.142144"    "MSS5.142142"   
+# [31] "CH01d09.151153" "CH01d09.151151" "CH01d09.151173" "CH01d09.153169" "CH01d09.147147"
+# [36] "MSS16.182182"   "MSS16.180182"   "MSS16.184184"   "MSS16.152152"   "MSS16.180188"  
+# [41] "MSS16.164180"   "NZ05g8.129147"  "NZ05g8.141159"  "CH04e03.209219" "CH04e03.201209"
+# [46] "CH04e03.211219" "CH04e03.219219" "CH04e03.211215" "CH04e03.189189" "CH04e03.201215"
+# [51] "CH04e03.203209" "CH04e03.211213"
+#
+# $var.idx
+# CH01h01.126132 CH01h01.124142 CH01h01.126142 CH01h01.126134 CH01h01.116126 CH01h01.114134 
+# 5             19             26             33             38             46 
+# CH01h01.116142 CH01h01.116136 CH01h01.112114 CH01h01.116116 CH02c09.246248 CH02c09.248253 
+# 49             74            118            140            152            153 
+# CH02c09.248248 CH02c09.250255 CH02c09.255255    MSS1.173181    MSS1.181183    MSS1.181181 
+# 156            157            158            218            225            239 
+# MSS1.167181    MSS1.173173    MSS1.161181    MSS1.163163    MSS5.128132    MSS5.130142 
+# 241            249            252            321            326            330 
+# MSS5.128138    MSS5.132142    MSS5.128142    MSS5.134134    MSS5.142144    MSS5.142142 
+# 335            337            339            346            350            355 
+# CH01d09.151153 CH01d09.151151 CH01d09.151173 CH01d09.153169 CH01d09.147147   MSS16.182182 
+# 393            400            401            408            448            565 
+# MSS16.180182   MSS16.184184   MSS16.152152   MSS16.180188   MSS16.164180  NZ05g8.129147 
+# 585            593            612            629            640            753 
+# NZ05g8.141159 CH04e03.209219 CH04e03.201209 CH04e03.211219 CH04e03.219219 CH04e03.211215 
+# 789            932            939            942            944            951 
+# CH04e03.189189 CH04e03.201215 CH04e03.203209 CH04e03.211213 
+# 981            982            984            994 
+#
+# $var.values
+# CH01h01.126132 CH01h01.124142 CH01h01.126142 CH01h01.126134 CH01h01.116126 CH01h01.114134 
+# 0.006205879    0.004949413    0.005511494    0.010703978    0.009451100    0.006297841 
+# CH01h01.116142 CH01h01.116136 CH01h01.112114 CH01h01.116116 CH02c09.246248 CH02c09.248253 
+# 0.009873753    0.013823777    0.005711294    0.011625695    0.007444002    0.006775470 
+# CH02c09.248248 CH02c09.250255 CH02c09.255255    MSS1.173181    MSS1.181183    MSS1.181181 
+# 0.016704968    0.005208491    0.016887143    0.009981786    0.012881216    0.056458806 
+# MSS1.167181    MSS1.173173    MSS1.161181    MSS1.163163    MSS5.128132    MSS5.130142 
+# 0.021138850    0.016097185    0.010106541    0.005051472    0.046968953    0.010833752 
+# MSS5.128138    MSS5.132142    MSS5.128142    MSS5.134134    MSS5.142144    MSS5.142142 
+# 0.006324425    0.026835666    0.006129875    0.004834178    0.012434065    0.015110218 
+# CH01d09.151153 CH01d09.151151 CH01d09.151173 CH01d09.153169 CH01d09.147147   MSS16.182182 
+# 0.009604358    0.024906125    0.009040812    0.006406774    0.004765858    0.008853020 
+# MSS16.180182   MSS16.184184   MSS16.152152   MSS16.180188   MSS16.164180  NZ05g8.129147 
+# 0.006275052    0.010629404    0.025732108    0.005985319    0.006804755    0.005017271 
+# NZ05g8.141159 CH04e03.209219 CH04e03.201209 CH04e03.211219 CH04e03.219219 CH04e03.211215 
+# 0.006345475    0.017892350    0.010460574    0.005923056    0.006735168    0.006433509 
+# CH04e03.189189 CH04e03.201215 CH04e03.203209 CH04e03.211213 
+# 0.019218835    0.005862093    0.005568817    0.008537317 
+
+boxplot(myLoadings~st_genpop$loc.fac, las=3, ylab="Contribution", xlab="Marker",
+        main="Contributions by markers \nto the first global score", col="grey")
+
+# WILD ONLY
+library(adegenet)
+library(poppr)
+library(dplyr)
+library(hierfstat)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+library(tidyverse)
+#install.packages("adespatial")
+library(adespatial)
+#install.packages("MASS")
+library(MASS)
+library(spdep)
+library(rnaturalearthdata)
+library(rnaturalearth)
+library(factoextra)
+library(tmap)
+library(maps)
+library(mapdata)
+#install.packages("splancs")
+library(splancs)
+#install.packages("interp")
+library(interp)
+
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+st_genotypes <- read.csv("ST_Genotypes_NoSmallPops.csv", header = TRUE, stringsAsFactors = FALSE)
+str(st_genotypes)
+
+#Subset only wild individuals
+st_genotypes$Planted <- ifelse(st_genotypes$Planted == 0, 2, st_genotypes$Planted)
+table(st_genotypes$Planted)
+st_genotypes <- st_genotypes %>% dplyr::filter(Planted == 2)
+#st_genotypes <- st_genotypes[st_genotypes$Planted == 0,]
+summary(st_genotypes)
+
+str(st_genotypes)
+dim(st_genotypes)
+
+# Subset genotypes of st_genotypes
+geno = st_genotypes[, 7:14]
+head(geno)
+ind = as.character(st_genotypes$Sample.ID)
+site = as.character(st_genotypes$Population)
+reg = as.character(st_genotypes$Region)
+lat = as.numeric(st_genotypes$Latitude)
+long = as.numeric(st_genotypes$Longitude)
+st_genind = df2genind(geno, ploidy = 2, ind.names = ind, pop = site, ncode = 6)
+st_genind$tab[1:5, 1:10]
+attr(st_genind, "reg") <- reg
+attr(st_genind, "lat") <- lat
+attr(st_genind, "long") <- long
+retrieved_reg <- attr(st_genind, "reg")
+st_genind
+
+sum(is.na(st_genind$long))
+
+st_genpop <- genind2genpop(st_genind)
+##
+## Converting data from a genind to a genpop object...
+##
+## ...done.
+
+# Add latitude and longitude data to genpop object
+# coord <- data.frame(long,lat)
+# coord
+# head(coord)
+#st_genpop@other$xy <- cbilat
+st_genpop@other$xy <- cbind(long, lat)  # Combine longitude and latitude into a matrix
+#st_genpop@other$xy <- coord
+
+Dgen <- dist.genpop(st_genpop,method=2)
+Dgeo <- dist(st_genpop$other$xy)
+#ibd <- mantel.randtest(Dgen,Dgeo)
+
+mySpca <- spca(st_genind,xy = cbind(st_genind$long, st_genind$lat), type=5, d1 = 0, d2 = 1, scannf=FALSE) #
+#mySpca <- spca(st_genpop,xy = coord, type=5,d1=0,d2=2,scannf=FALSE)
+
+#myCn <- chooseCN(st_genpop$other$xy, type=6, k=10, plot=FALSE)
+#myCn
+#mySpca2 <- spca(st_genind,cn=myCn,scannf=FALSE)
+mySpca
+#mySpca2
+########################################
+# spatial Principal Component Analysis #
+########################################
+# class: spca
+# $call: spca.genind(obj = st_genind, xy = cbind(st_genind$long, st_genind$lat), 
+#                   scannf = FALSE, type = 5, d1 = 0, d2 = 1)
+#
+# $nfposi: 1 axis-components saved
+# $nfnega: 1 axis-components saved
+# Positive eigenvalues: 0.002212 0.0003355 0.000226 0.0001515 9.582e-05 ...
+# Negative eigenvalues: -0.0007105 -0.0002827 -0.000197 -0.0001546 -0.0001231 ...
+#
+# vector length mode    content    
+# 1 $eig   744    numeric eigenvalues
+#
+# data.frame nrow ncol content                                                 
+# 1 $tab       765  897  transformed data: optionally centred / scaled           
+# 2 $c1        897  2    principal axes: scaled vectors of alleles loadings      
+# 3 $li        765  2    principal components: coordinates of entities ('scores')
+# 4 $ls        765  2    lag vector of principal components                      
+# 5 $as        2    2    pca axes onto spca axes                                 
+#
+# $xy: matrix of spatial coordinates
+# $lw: a list of spatial weights (class 'listw')
+#
+# other elements: lw
+barplot(mySpca$eig,main="Eigenvalues of sPCA", col=rep(c("red","grey"),c(1,100)))
+
+barplot(mySpca$eig, main="A variant of the plot\n of sPCA eigenvalues",
+        col=spectral(length(mySpca$eig)))
+legend("topright", fill=spectral(2),
+       leg=c("Global structures", "Local structures"))
+abline(h=0,col="grey")
+
+# Map sPCA results onto Austria
+austria_map <- map_data("world", "Austria")
+
+# Convert sPCA results to a data frame
+spca_df <- data.frame(long = mySpca$xy[,1], lat = mySpca$xy[,2], autocorr = mySpca$li)
+
+# Plot sPCA results with Austria map
+ggplot() +
+  geom_polygon(data = austria_map, aes(x = long, y = lat, group = group), fill = NA, color = "black") +
+  geom_point(data = spca_df, aes(x = long, y = lat, color = autocorr.Axis.1, size = autocorr.Axis.744)) +
+  scale_color_viridis_c(name = "Autocorr Axis 1") +  # Use viridis color scale for continuous data
+  scale_size_continuous(name = "Autocorr Axis 2") +  # Adjust size scale as needed
+  coord_quickmap() +
+  theme_minimal() +
+  labs(title = "sPCA Results on Map of Austria", color = "Spatial Autocorrelation Axis 1", size = "Spatial Autocorrelation Axis 2")
+
+myGtest <- global.rtest(st_genind$tab,mySpca$lw,nperm=9999)
+myGtest
+# Monte-Carlo test
+# Call: global.rtest(X = st_genind$tab, listw = mySpca$lw, nperm = 9999)
+#
+# Observation: 0.002129934 
+#
+# Based on 9999 replicates
+# Simulated p-value: 0.0634 
+# Alternative hypothesis: greater 
+#
+# Std.Obs  Expectation     Variance 
+# 1.609544e+00 1.668531e-03 8.217803e-08 
+#
+myLtest <- local.rtest(st_genind$tab,mySpca$lw,nperm=9999)
+myLtest
+# Monte-Carlo test
+# Call: local.rtest(X = st_genind$tab, listw = mySpca$lw, nperm = 9999)
+#
+# Observation: 0.002536166 
+#
+# Based on 9999 replicates
+# Simulated p-value: 0.8528 
+# Alternative hypothesis: greater 
+#
+# Std.Obs   Expectation      Variance 
+# -9.243024e-01  3.034206e-03  2.903356e-07 
+
+plot(myGtest)
+plot(myLtest)
+plot(mySpca)
+colorplot(mySpca,cex=2,main="colorplot of mySpca, first global score")
+
+x <- other(st_genpop)$xy[,1]
+y <- other(st_genpop)$xy[,2]
+temp <- interp(x, y, mySpca$li[,1], duplicate = TRUE)
+image(temp, col=azur(100))
+points(x,y)
+
+interpX <- seq(min(x),max(x),le=200)
+interpY <- seq(min(y),max(y),le=200)
+temp <- interp(x, y, mySpca$ls[,1], xo=interpX, yo=interpY, duplicate = TRUE)
+image(temp, col=azur(100))
+points(x,y)
+
+myPal <- colorRampPalette(c("firebrick2", "white", "lightslateblue"))
+annot <- function(){
+  title("sPCA - interpolated map of individual scores")
+  points(x,y)
+}
+filled.contour(temp, color.pal=myPal, nlev=50,
+               key.title=title("lagged \nscore 1"), plot.title=annot())
+
+myLoadings <- mySpca$c1[,1]^2
+names(myLoadings) <- rownames(mySpca$c1)
+loadingplot(myLoadings, xlab="Alleles",
+            ylab="Weight of the alleles",
+            main="Contribution of alleles \n to the first sPCA axis")
+
+temp <- loadingplot(myLoadings, threshold=quantile(myLoadings, 0.95),
+                    xlab="Alleles",ylab="Weight of the alleles",
+                    main="Contribution of alleles \n to the first sPCA axis",
+                    fac=st_genpop$loc.fac, cex.fac=0.6)
+
+temp
+# $threshold
+# 95% 
+# 0.006184234 
+#
+# $var.names
+# [1] "CH01h01.126126" "CH01h01.114126" "CH01h01.120126" "CH01h01.116126" "CH01h01.120136"
+# [6] "CH01h01.114120" "CH01h01.134134" "CH01h01.116136" "CH01h01.116116" "CH02c09.248255"
+# [11] "CH02c09.246248" "CH02c09.246255" "CH02c09.248248" "CH02c09.246253" "CH02c09.248250"
+# [16] "MSS1.173181"    "MSS1.165173"    "MSS1.163183"    "MSS1.181183"    "MSS1.163173"   
+# [21] "MSS1.181181"    "MSS1.167181"    "MSS1.163167"    "MSS1.163181"    "MSS5.132138"   
+# [26] "MSS5.132134"    "MSS5.134140"    "MSS5.140140"    "CH01d09.151153" "CH01d09.151151"
+# [31] "CH01d09.157165" "CH01d09.147171" "MSS16.182182"   "MSS16.182184"   "MSS16.180182"  
+# [36] "MSS16.184184"   "MSS16.182196"   "MSS16.190196"   "MSS16.180200"   "NZ05g8.129141" 
+# [41] "NZ05g8.129137"  "CH04e03.201211" "CH04e03.201209" "CH04e03.211219" "CH04e03.211211"
+#
+# $var.idx
+# CH01h01.126126 CH01h01.114126 CH01h01.120126 CH01h01.116126 CH01h01.120136 CH01h01.114120 
+# 4             18             21             38             40             53 
+# CH01h01.134134 CH01h01.116136 CH01h01.116116 CH02c09.248255 CH02c09.246248 CH02c09.246255 
+# 56             74            140            143            144            146 
+# CH02c09.248248 CH02c09.246253 CH02c09.248250    MSS1.173181    MSS1.165173    MSS1.163183 
+# 148            154            169            195            197            199 
+# MSS1.181183    MSS1.163173    MSS1.181181    MSS1.167181    MSS1.163167    MSS1.163181 
+# 202            211            216            218            220            258 
+# MSS5.132138    MSS5.132134    MSS5.134140    MSS5.140140 CH01d09.151153 CH01d09.151151 
+# 287            301            319            327            340            347 
+# CH01d09.157165 CH01d09.147171   MSS16.182182   MSS16.182184   MSS16.180182   MSS16.184184 
+# 409            460            480            489            500            508 
+# MSS16.182196   MSS16.190196   MSS16.180200  NZ05g8.129141  NZ05g8.129137 CH04e03.201211 
+# 566            618            628            650            682            808 
+# CH04e03.201209 CH04e03.211219 CH04e03.211211 
+# 813            816            822 
+#
+# $var.values
+# CH01h01.126126 CH01h01.114126 CH01h01.120126 CH01h01.116126 CH01h01.120136 CH01h01.114120 
+# 0.008348167    0.007203171    0.007972962    0.007553219    0.010409060    0.013248632 
+# CH01h01.134134 CH01h01.116136 CH01h01.116116 CH02c09.248255 CH02c09.246248 CH02c09.246255 
+# 0.006512827    0.013272648    0.007971386    0.014203346    0.019152597    0.012644158 
+# CH02c09.248248 CH02c09.246253 CH02c09.248250    MSS1.173181    MSS1.165173    MSS1.163183 
+# 0.012972639    0.007017222    0.019349325    0.008912393    0.006312717    0.027559127 
+# MSS1.181183    MSS1.163173    MSS1.181181    MSS1.167181    MSS1.163167    MSS1.163181 
+# 0.006592062    0.012127373    0.025499315    0.008733965    0.008049967    0.019606395 
+# MSS5.132138    MSS5.132134    MSS5.134140    MSS5.140140 CH01d09.151153 CH01d09.151151 
+# 0.007142498    0.017597602    0.008028609    0.010835189    0.020676667    0.020145151 
+# CH01d09.157165 CH01d09.147171   MSS16.182182   MSS16.182184   MSS16.180182   MSS16.184184 
+# 0.007522057    0.007819306    0.007045953    0.013642114    0.006875649    0.012759005 
+# MSS16.182196   MSS16.190196   MSS16.180200  NZ05g8.129141  NZ05g8.129137 CH04e03.201211 
+# 0.006942872    0.007758223    0.010594966    0.012399351    0.011755827    0.013622426 
+# CH04e03.201209 CH04e03.211219 CH04e03.211211 
+# 0.014894304    0.010327153    0.012977269 
+
+boxplot(myLoadings~st_genpop$loc.fac, las=3, ylab="Contribution", xlab="Marker",
+        main="Contributions by markers \nto the first global score", col="grey")
+```
+
+```{r}
+#Figures and Standard Errors#
+
+#Selfing Rate Box Plot
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+data <- read.csv('ST_Graphics.csv', header = TRUE, stringsAsFactors = FALSE)
+library(tidyverse)
+library(ggplot2)
+
+ggplot(data, aes(x = as.factor(Population), y = Selfing.Rate)) +
+   geom_bar(stat = "Identity", fill = "snow4") +
+   geom_errorbar(aes(ymin = Selfing.Rate - SE, ymax = Selfing.Rate + SE), width = 0.2, color = "black") +
+   labs(x = "Population", y = "Selfing Rate") +
+   theme_minimal() +
+   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data, aes(x = Distance, y = Kinship)) +
+  geom_line() +
+  geom_line(aes(y = X95..Upper.CI), linetype = "dashed") +   # Line for upper confidence interval
+  geom_line(aes(y = X95..Lower.CI), linetype = "dashed") +
+  labs(x = "Distance (km)", y = "Loiselle Kinship Value")
+
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(viridisLite)
+require("leaflet.minicharts")
+library(leaflet)
+library(leaflet.extras)
+library(sf)
+require(cluster)
+library(stats)
+library(factoextra)
+library(tmap)
+library(maps)
+library(mapdata)
+library(cowplot)
+library(googleway)
+library(ggrepel)
+library(ggspatial)
+library(libwgeom)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(gridExtra)
+library(scales)
+data <- read.csv('ST_Genotypes_All.csv', header = TRUE, stringsAsFactors = FALSE)
+austria_map <- map_data("world", "Austria")
+ggplot(data, aes(x=Longitude, y=Latitude, color=factor(Planted))) +
+  geom_point() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_polygon(data = austria_map, aes(x = long, y = lat, group = group), fill = NA, color = "black")
+
+# Private allelic richness
+data <- read.table(text = "
+                    CH01h01 CH02c09 MSS1 MSS5 CH01d09 MSS16 NZ05g8 CH04e03
+2  0.1515 0.0477 0.0044 0.0000 0.0338 0.5085 0.0678 0.2896
+3  0.0031 0.0000 0.0000 0.0000 0.1052 0.0014 0.0000 0.0395
+4  0.0015 0.0104 0.0000 0.0000 0.9091 0.4945 0.0006 0.0000
+6  0.0502 0.0011 0.0763 0.0000 0.0002 0.0001 0.4787 0.5048
+9  0.2458 0.0052 0.0123 0.0000 0.1964 0.0030 0.0000 0.0000
+10 0.5647 0.0000 0.0001 0.0000 0.7065 0.0001 0.0000 0.0014
+11 0.9831 0.1246 0.0000 0.0000 0.0000 0.0000 0.0344 0.0000
+15 0.0000 0.1093 0.9903 0.0000 0.4057 0.3092 0.0000 0.0000
+16 0.1218 0.0578 0.0321 0.0000 0.0518 0.2513 0.0435 0.2802
+17 0.2152 0.0783 0.0000 0.0034 0.1454 0.2894 0.1311 0.0273
+18 0.0008 0.0000 0.0001 0.0000 0.8722 1.0000 0.0000 0.0000
+21 0.0000 0.0679 0.0001 0.0000 0.0003 0.0599 0.1396 0.0119
+22 0.4335 0.0000 0.0014 0.0000 0.0000 0.0001 0.0000 0.0000
+23 0.0000 0.0000 0.1402 0.0000 0.0001 0.0001 0.0110 0.2178
+24 0.4036 0.3366 0.0000 0.0000 0.0004 0.0070 0.3269 0.7950
+25 0.0001 0.0544 0.0015 0.0000 0.0795 0.0001 0.0487 0.2632
+26 0.0000 2.6147 1.4777 1.6982 0.7273 0.0217 1.2814 1.0217
+27 2.2988 0.1320 0.4193 0.0000 0.4439 2.2072 0.0618 1.0000
+28 0.0307 0.0007 0.0000 0.0000 0.0508 0.0000 0.0658 0.0000
+29 0.6858 0.5609 0.0233 0.5308 0.0387 0.0227 1.6376 0.5495
+30 0.0003 0.1869 0.0000 0.0000 0.6822 0.0001 0.6250 0.0000", header = TRUE)
+
+# Calculate standard error for each population
+standard_errors <- apply(data, 1, function(x) sd(x) / sqrt(length(x)))
+
+# Print standard errors
+print(standard_errors)
+
+# 2           3           4           6           9          10          11          15 
+# 0.062858647 0.013266688 0.121039872 0.077680490 0.035960424 0.104840682 0.121018378 0.122568234 
+# 16          17          18          21          22          23          24          25 
+# 0.037215691 0.036898693 0.153656071 0.017952954 0.054160986 0.029933056 0.101616533 0.031593336 
+# 26          27          28          29          30 
+# 0.308951618 0.331829213 0.009557402 0.189138798 0.104519502 
+
+# NA
+data <- read.table(text = "
+                   CH01h01 CH02c09 MSS1 MSS5 CH01d09 MSS16 NZ05g8 CH04e03
+2  19       10      14       8      17        20        17        14
+3   9         6       6       4      11        11        10        10
+4   9         6       6       7        9        10          9          7
+6  16       7       12       6      15        13        17        11
+9  10       6        9       5      10         9        11          8
+10 11       5        8       5        8         9        11          8
+11 12       6       10      7       11        10        13          7
+15  7        6        9       6        9        12        10          4
+16 21      11      18       9       23        29        23        19
+17 20      11      13      10      21        24        22        14
+18  7        5      10       5        6          9         8           7
+21 10      7        9       8      12        15       14          11
+22 11      6        9       8        9        12       12          11
+23 11      5      12       6      10        15       18          10
+24 12      7      13       9      13        16       15          13
+25 13      8      12       7      14        13       16          10
+26  3     10     13       9      15         1         6            5
+27  9      8       8       7      11        15       13           9
+28 10     6       7       6      12        10       12           8
+29  9     6       7       8      10        16       16           8
+30  8     6     10       8      13        13       14           7", header = TRUE)
+
+# Calculate standard error for each population
+standard_errors <- apply(data, 1, function(x) sd(x) / sqrt(length(x)))
+
+# Print standard errors
+print(standard_errors)
+
+# 2         3         4         6         9        10        11        15        16        17 
+# 1.4932886 0.9437293 0.5489438 1.4197271 0.7319251 0.8114691 0.9063270 0.9149063 2.3179232 1.9312977 
+# 18        21        22        23        24        25        26        27        28        29 
+# 0.6391261 0.9955257 0.7500000 1.5170166 1.0479572 1.0845918 1.7191152 0.9819805 0.8750000 1.3758114 
+# 30 
+# 1.0927929 
+
+# NAe
+data <- read.table(text = "
+                      	CH01h01	CH02c09	MSS1	MSS5	CH01d09	MSS16	NZ05g8	CH04e03
+2	7.01	4.79	9.24	4.55	9.17	10.23	12.39	6.28
+3	4.87	3.79	3.7	4.02	5.09	8.58	10.87	6.94
+4	6.63	4.83	4	6.27	7.73	8.59	8	5.8
+6	9.3	3.7	4.63	4.31	6.61	4.94	10.6	8.87
+9	8.66	5.77	5.89	3.6	3.96	6.02	11.54	7.91
+10	10.05	5.03	4.55	3.6	5.97	5.62	14.69	5.97
+11	6.34	4.19	9.03	5.18	5.5	7.18	10.67	5.33
+15	5.89	5.54	8.15	4.2	7.49	12.04	11.54	2.95
+16	8.15	4.82	4.82	5.12	8.47	7.62	12.1	7.18
+17	8.52	5.36	5.04	5.25	8.77	7.63	10.32	8.03
+18	5.46	4.34	10.61	3.98	3.6	4.66	7.34	3.24
+21	9.08	5.92	6.2	4.44	3.77	16.27	13.02	8.98
+22	4.53	4.06	6.04	3.87	3.64	7.66	9.36	7.66
+23	8.99	4.37	5.22	3.67	2.42	11	14.73	5.16
+24	7.91	4.48	7.5	6.09	9.34	13.33	10.68	7.83
+25	8.19	5.46	4.53	3.48	7.92	7.31	11.73	5.01
+26	2.13	5.94	8.77	4.75	11.5	1	2.3	1.15
+27	5.3	7.96	4.34	4.9	14.69	27.27	12.73	7.64
+28	5.01	4.71	4.28	3.33	5.29	5.95	8.85	4.93
+29	3.85	3.81	4.75	4.43	7.67	13.91	11.46	4.8
+30	5.92	4.97	8.87	5.58	11.04	10.57	13.08	5.58", header = TRUE)
+
+standard_errors <- apply(data, 1, function(x) sd(x) / sqrt(length(x)))
+
+print(standard_errors)
+# 2         3         4         6         9        10        11        15 
+# 0.9754317 0.9205390 0.5626292 0.9328375 0.9241259 1.2947311 0.7731331 1.1555534 
+# 16        17        18        21        22        23        24        25 
+# 0.8691087 0.6872746 0.8712100 1.5362303 0.7636771 1.4953798 0.9679157 0.9340043 
+# 26        27        28        29        30 
+# 1.3562155 2.7211230 0.5750029 1.3658906 1.0963078 
+data <- read.csv('ST_Table.csv', header = TRUE, stringsAsFactors = FALSE)
+data$Population <- factor(data$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                              "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                              "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                              "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                              "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                              "Rons"))
+custom_theme = theme(
+  axis.text.x = element_text(size = 10, angle = 90, vjust = 0.5, face = "bold"),
+  axis.text.y = element_text(size = 10),
+  axis.title.y = element_text(size = 12),
+  axis.title.x = element_blank(),
+  axis.line.y = element_line(size = 0.5),
+  legend.title = element_blank(),
+  legend.text = element_text(size = 12),
+  panel.grid = element_blank(),
+  panel.background = element_blank(),
+  plot.title = element_text(hjust = 0.5, size = 15, face="bold")
+)
+# Italic label
+hetlab.o = expression(italic("H")[I])
+hetlab.e = expression(italic("H")[S])
+nalab = "NA"
+naelab = "NAe"
+
+ggplot(data, aes(x=Population, y=Fis, size=Samples.per.Population, color=Region)) +
+  geom_point() +                      # Add points
+  scale_color_brewer(palette = "Dark2") +
+  labs(title="Fis Values by Population with Sample Size Scaling",
+       x="Population",
+       y=expression(italic("F")[IS]),
+       size="Population Size") +          # Label for the size legend
+  theme_minimal() +                   # Use a minimal theme
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Rotate x-axis labels for readability  
+
+# Fit the linear model
+model1 <- lm(NA. ~ Samples.per.Population, data=data)
+model2 <- lm(NAe ~ Samples.per.Population, data=data)
+
+# Summarize the model
+summary(model1)
+summary(model2)
+
+# Create the scatter plot with regression line
+ggplot(data, aes(x=Samples.per.Population, y=NA.)) +
+  geom_point() +                       # Add points
+  geom_smooth(method="lm", se=TRUE) +  # Add regression line with confidence interval
+  labs(title="Linear Relationship between Samples per Population and NA",
+       x="Samples per Population",
+       y="NA") +
+  theme_minimal()
+
+ggplot(data, aes(x=Samples.per.Population, y=NAe)) +
+  geom_point() +                       # Add points
+  geom_smooth(method="lm", se=TRUE) +  # Add regression line with confidence interval
+  labs(title="Linear Relationship between Samples per Population and NAe",
+       x="Samples per Population",
+       y="NAe") +
+  theme_minimal()
+
+# Create the scatter plot
+ggplot(data, aes(x=Population, y=Fis, size=Samples.per.Population, color=Region)) +
+  geom_point() +                      # Add points
+  scale_color_brewer(palette = "Dark2") +
+  labs(title="Fis Values by Population with Sample Size Scaling",
+       x="Population",
+       y=expression(italic("F")[IS]),
+       size="Population Size") +          # Label for the size legend
+  theme_minimal() +                   # Use a minimal theme
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Rotate x-axis labels for readability
+
+#TRY AGAIN ST PAPER FIGURES THE FOUR PLOTS
+setwd('I:/Lila Afifi/WILDOBST General/WILDOBST Samples/Microsynth Ecogenics/Data/ST Analysis/RStudio CSV Files')
+
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(gtable)
+library(grid)
+
+data <- read.csv('ST_Table.csv', header = TRUE, stringsAsFactors = FALSE)
+data$Population <- factor(data$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                      "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                      "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                      "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                      "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                      "Rons"))
+str(data)
+# Gather the data into a long format (not converting but preparing for plotting)
+data_heterozygosity <- reshape2::melt(data, id.vars = "Population", measure.vars = c("HI", "HS"))
+data_heterozygosity$Population <- factor(data_heterozygosity$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                      "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                      "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                      "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                      "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                      "Rons"))
+data_fis <- reshape2::melt(data, id.vars = "Population", measure.vars = c("FIS"))
+data_fis$Population <- factor(data_fis$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                      "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                      "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                      "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                      "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                      "Rons"))
+data_number_alleles <- reshape2::melt(data, id.vars = "Population", measure.vars = c("NA.", "NAe"))
+data_number_alleles$Population <- factor(data_number_alleles$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                      "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                      "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                      "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                      "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                      "Rons"))
+#data_allelicrichness <- data %>% dplyr::select(Population, Samples.per.Population, AR, PAR)
+#data_allelicrichness$Population <- factor(data_allelicrichness$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+#                                                      "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+#                                                      "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+#                                                      "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+#                                                      "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+#                                                      "Rons"))
+data_ar <- reshape2::melt(data, id.vars = "Population", measure.vars = c("AR"))
+data_ar$Population <- factor(data_ar$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                                                    "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                                                    "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                                                    "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                                                    "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                                                    "Rons"))
+data_par <- reshape2::melt(data, id.vars = "Population", measure.vars = c("PAR"))
+data_par$Population <- factor(data_par$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                                                    "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                                                    "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                                                    "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                                                    "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                                                    "Rons"))
+data_facet <- pivot_longer(data, cols = c("FIS", "AR", "PAR"), names_to = "variable", values_to = "value")
+data_facet$Population <- factor(data_facet$Population, levels = c("Hochleithenwald", "Bisamberg","Stockerau","Poysdorf",
+                                                              "Ernstbrunner Wald","Wullersdorf","Hollabrunn", 
+                                                              "Leopoldsberg","Lainz", "Pottenstein", "Emmerberg", 
+                                                              "Loretto", "Zagersdorf", "Fidischer Wald", "Stainz bei Straden", 
+                                                              "Konigshof","Petzenkirchen", "Weyer", "Alkoven", "Villach", 
+                                                              "Rons"))
+# Rename columns for clarity
+#colnames(data_allelicrichness) <- c("Population", "Size", "AllelicRichness", "PrivateAllelicRichness")
+
+# Reshape the data to long format
+#data_allelicrichness <- reshape2::melt(data_allelicrichness, id.vars = c("Population", "Size"), 
+#                         variable.name = "RichnessType", value.name = "RichnessValue")
+
+custom_theme = theme(
+  axis.text.x = element_text(size = 10, angle = 90, vjust = 0.5, hjust = 1, face = "bold"),
+  axis.text.y = element_text(size = 10),
+  axis.title.y = element_text(size = 12),
+  axis.title.x = element_blank(),
+  axis.line.y = element_line(size = 0.5),
+  axis.line.x = element_line(size = 0.5),
+  legend.title = element_blank(),
+  legend.text = element_text(size = 12),
+  panel.grid = element_blank(),
+  panel.background = element_blank(),
+  plot.title = element_text(hjust = 0.5, size = 15, face="bold")
+)
+# Italic label
+hetlab.o = expression(italic("H")[I])
+hetlab.e = expression(italic("H")[S])
+nalab = "NA"
+naelab = expression("NA"[e])
+fislab = expression(italic("F")[IS])
+
+# Plots
+
+heterozygosity <- ggplot(data = data_heterozygosity, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_fill_manual(values = c("#53868B", "#bdbdbd"), labels = c(hetlab.o, hetlab.e)) +
+  ylab("heterozygosity") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+
+fis <- ggplot(data = data_fis, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(-0.075, 0.075)) +
+  scale_fill_manual(values = c("#7F8B69"), labels = c(fislab)) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+
+ar <- ggplot(data = data_ar, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 10)) +
+  scale_fill_manual(values = c("#332331")) +
+  ylab("allelic richness") +  # Add y-axis label
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+
+par <- ggplot(data = data_par, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1.25)) +
+  scale_fill_manual(values = c("#AB8F46")) +
+  ylab("private allelic richness") +  # Add y-axis label
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+
+number_alleles <- ggplot(data = data_number_alleles, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black") +
+  scale_fill_manual(values = c("#53868B", "#bdbdbd"), labels = c(nalab, naelab)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0, 20)) +
+  ylab("number of alleles") +
+  custom_theme
