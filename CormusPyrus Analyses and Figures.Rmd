@@ -1,0 +1,1923 @@
+---
+title: "CormusPyrus Paper Figures"
+author: "Lila Afifi"
+date: "2024-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(viridisLite)
+require("leaflet.minicharts")
+library(leaflet)
+library(leaflet.extras)
+library(sf)
+require(cluster)
+library(stats)
+library(factoextra)
+library(tmap)
+library(maps)
+library(mapdata)
+library(cowplot)
+library(googleway)
+library(ggrepel)
+library(ggspatial)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(gridExtra)
+library(scales)
+library(reshape2)
+data <- read.csv("GenDiv Table.csv", header = TRUE, stringsAsFactors = FALSE)
+rpsdata <- read.csv("Cormus Pyrus RPS Table.csv", header = TRUE, stringsAsFactors = FALSE)
+locdata <- read.csv("Cormus Pyrus Wild Locations.csv", header = TRUE, stringsAsFactors = FALSE)
+mycolors <- c( "#900c3f",  "#182b55",  "#5f4e94",  "#a291c7",  "#82cbec",  "#d94f21",  "#febd2b",  "#9aab4b", "#4d5626", "#000000")
+```
+
+```{r labels}
+hetlab.o = expression(italic("H")[o])
+hetlab.e = expression(italic("H")[e])
+nalab = "NA"
+naelab = expression("NA"[e])
+fislab = expression(italic("F")[IS])
+```
+
+```{r FIS}
+data_fis <- melt(data, id.vars = c("Population", "Species"), measure.vars = c("FIS"))
+pyrusdata <- subset(data_fis, Species == "P. pyraster")
+cormusdata <- subset(data_fis, Species == "C. domestica")
+pyrusdata$Population <- factor(pyrusdata$Population, levels = c("Eckartsau", "Nationalpark Donau-Auen", "Wolfsthal", "Rabensburg", "Wolkersdorf", "Bisamberg", "Hollabrunn", "Gillaus", "Leopoldsberg", "Lainz", "Hinterbrühl", "Zagersdorf", "Fidischer Wald", "Villach", "Königshof", "Weyer"))
+cormusdata$Population <- factor(cormusdata$Population, levels = c("Falkenstein", "Michelstetten", "Hollabrunn", "Wolkersdorf", "Lainz", "Pressbaum", "Merkenstein", "Emmerberg", "Zagersdorf", "Königshof", "Weyer"))
+fis_pyrus <- ggplot(data = pyrusdata, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(-0.05, 0.25)) +
+  scale_fill_manual(values = c("#182b55"), labels = c(fislab)) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(fis_pyrus)
+
+fis_cormus <- ggplot(data = cormusdata, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(-0.05, 0.25)) +
+  scale_fill_manual(values = c("#182b55"), labels = c(fislab)) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(fis_cormus)
+```
+
+```{r heterozygosity}
+pyrusdata <- subset(data, Species == "P. pyraster")
+cormusdata <- subset(data, Species == "C. domestica")
+pyrus_heterozygosity <- reshape2::melt(pyrusdata, id.vars = "Population", measure.vars = c("HO", "HE"))
+cormus_heterozygosity <- reshape2::melt(cormusdata, id.vars = "Population", measure.vars = c("HO", "HE"))
+pyrus_heterozygosity$Population <- factor(pyrusdata$Population, levels = c("Eckartsau", "Nationalpark Donau-Auen", "Wolfsthal", "Rabensburg", "Wolkersdorf", "Bisamberg", "Hollabrunn", "Gillaus", "Leopoldsberg", "Lainz", "Hinterbrühl", "Zagersdorf", "Fidischer Wald", "Villach", "Königshof", "Weyer"))
+cormus_heterozygosity$Population <- factor(cormusdata$Population, levels = c("Falkenstein", "Michelstetten", "Hollabrunn", "Wolkersdorf", "Lainz", "Pressbaum", "Merkenstein", "Emmerberg", "Zagersdorf", "Königshof", "Weyer"))
+
+heterozygosity_pyrus <- ggplot(data = pyrus_heterozygosity, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_fill_manual(values = c("#febd2b", "#9aab4b"), labels = c(hetlab.o, hetlab.e)) +
+  ylab("heterozygosity") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(heterozygosity_pyrus)
+
+heterozygosity_cormus <- ggplot(data = cormus_heterozygosity, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_fill_manual(values = c("#febd2b", "#9aab4b"), labels = c(hetlab.o, hetlab.e)) +
+  ylab("heterozygosity") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(heterozygosity_cormus)
+```
+
+```{r AR}
+data_ar <- melt(data, id.vars = c("Population", "Species"), measure.vars = c("AR"))
+pyrusdata <- subset(data_ar, Species == "P. pyraster")
+cormusdata <- subset(data_ar, Species == "C. domestica")
+pyrusdata$Population <- factor(pyrusdata$Population, levels = c("Eckartsau", "Nationalpark Donau-Auen", "Wolfsthal", "Rabensburg", "Wolkersdorf", "Bisamberg", "Hollabrunn", "Gillaus", "Leopoldsberg", "Lainz", "Hinterbrühl", "Zagersdorf", "Fidischer Wald", "Villach", "Königshof", "Weyer"))
+cormusdata$Population <- factor(cormusdata$Population, levels = c("Falkenstein", "Michelstetten", "Hollabrunn", "Wolkersdorf", "Lainz", "Pressbaum", "Merkenstein", "Emmerberg", "Zagersdorf", "Königshof", "Weyer"))
+ar_pyrus <- ggplot(data = pyrusdata, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 10)) +
+  scale_fill_manual(values = c("#d94f21")) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(ar_pyrus)
+
+ar_cormus <- ggplot(data = cormusdata, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 10)) +
+  scale_fill_manual(values = c("#d94f21")) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(ar_cormus)
+```
+
+```{r PAR}
+data_par <- melt(data, id.vars = c("Population", "Species"), measure.vars = c("PAR"))
+pyrusdata <- subset(data_par, Species == "P. pyraster")
+cormusdata <- subset(data_par, Species == "C. domestica")
+pyrusdata$Population <- factor(pyrusdata$Population, levels = c("Eckartsau", "Nationalpark Donau-Auen", "Wolfsthal", "Rabensburg", "Wolkersdorf", "Bisamberg", "Hollabrunn", "Gillaus", "Leopoldsberg", "Lainz", "Hinterbrühl", "Zagersdorf", "Fidischer Wald", "Villach", "Königshof", "Weyer"))
+cormusdata$Population <- factor(cormusdata$Population, levels = c("Falkenstein", "Michelstetten", "Hollabrunn", "Wolkersdorf", "Lainz", "Pressbaum", "Merkenstein", "Emmerberg", "Zagersdorf", "Königshof", "Weyer"))
+par_pyrus <- ggplot(data = pyrusdata, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_fill_manual(values = c("#82cbec")) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(par_pyrus)
+
+par_cormus <- ggplot(data = cormusdata, aes(x = Population, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_fill_manual(values = c("#82cbec")) +
+  ylab(expression(italic("F")[IS])) +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "none",  # Remove legend
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+print(par_cormus)
+```
+
+```{r tests for significance}
+pyrusdata <- subset(data, Species == "P. pyraster")
+cormusdata <- subset(data, Species == "C. domestica")
+
+# Test normality for FIS for each species (W close to 1 = normal, insig p = normal)
+shapiro.test(pyrusdata$FIS)
+shapiro.test(cormusdata$FIS)
+
+# Perform t-test for FIS between species
+t.test(FIS ~ Species, data = data)
+
+# Loop across each column to test for significance
+numeric_cols <- c("FIS", "NA.", "AR", "PAR", "HO", "HE")  # Add other columns as needed
+
+for (col in numeric_cols) {
+  print(paste("Testing for column:", col))
+  
+  # Check normality first
+  print(shapiro.test(data[[col]]))
+  
+  # If normal, use t-test, otherwise use Wilcoxon
+  if (shapiro.test(data[[col]])$p.value > 0.05) {
+    print(t.test(data[[col]] ~ data$Species))
+  } else {
+    print(wilcox.test(data[[col]] ~ data$Species))
+  }
+}
+
+# Ensure HI and HS columns are numeric
+data$HO <- as.numeric(data$HO)
+data$HE <- as.numeric(data$HE)
+
+# Check the structure of the dataset
+str(data)
+
+# Split the data by species
+data_pyrus <- subset(data, Species == "P. pyraster")
+data_domestica <- subset(data, Species == "C. domestica")
+
+# Calculate differences
+data_pyrus$difference <- data_pyrus$HO - data_pyrus$HE
+data_domestica$difference <- data_domestica$HO - data_domestica$HE
+
+# Shapiro-Wilk test for normality
+shapiro.test(data_pyrus$difference)  # For P. pyraster
+shapiro.test(data_domestica$difference)  # For C. domestica
+
+# Paired t-test for P. pyraster
+t_test_pyrus <- t.test(data_pyrus$HO, data_pyrus$HE, paired = TRUE)
+
+# Print results
+print(t_test_pyrus)
+
+# Paired t-test for C. domestica
+t_test_domestica <- t.test(data_domestica$HO, data_domestica$HE, paired = TRUE)
+
+# Print results
+print(t_test_domestica)
+
+# Compute the difference between HO and HE
+data <- data %>% mutate(diff = HO - HE)
+
+# Perform a one-sample t-test for each population
+one_sample_test <- data %>%
+    group_by(Population) %>%
+    summarise(
+        p_value = ifelse(n() > 1, t.test(diff)$p.value, NA),  # One-sample t-test
+        .groups = "drop"
+    ) %>%
+    filter(!is.na(p_value))
+
+# Adjust p-values (Bonferroni correction)
+one_sample_test$adjusted_p <- p.adjust(one_sample_test$p_value, method = "bonferroni")
+
+# Save results
+write.csv(one_sample_test, "One_Sample_T_Test_Results.csv", row.names = FALSE)
+
+# Print and check results
+print(one_sample_test)
+```
+
+```{r structure plots}
+dat_k2 <- read.csv("Pyrus PP K2.csv")
+dat_k3 <- read.csv("Pyrus PP K3.csv")
+dat_k4 <- read.csv("Pyrus PP K4.csv")
+dat_k5 <- read.csv("Pyrus PP K5.csv")
+dat_k6 <- read.csv("Pyrus PP K6.csv")
+dat_k7 <- read.csv("Pyrus PP K7.csv")
+dat_k8 <- read.csv("Pyrus PP K8.csv")
+dat_k9 <- read.csv("Pyrus PP K9.csv")
+dat_k10 <- read.csv("Pyrus PP K10.csv")
+
+pop_k2 <- dat_k2$Population
+pop_k3 <- dat_k3$Population
+pop_k4 <- dat_k4$Population
+pop_k5 <- dat_k5$Population
+pop_k6 <- dat_k6$Population
+pop_k7 <- dat_k7$Population
+pop_k8 <- dat_k8$Population
+pop_k9 <- dat_k9$Population
+pop_k10 <- dat_k10$Population
+
+#Read inferred admixture proportions file
+k2 <- cbind(dat_k2$K1,dat_k2$K2)
+k3 <- cbind(dat_k3$K1,dat_k3$K2, dat_k3$K3)
+k4 <- cbind(dat_k4$K1,dat_k4$K2, dat_k4$K3, dat_k4$K4)
+k5 <- cbind(dat_k5$K1,dat_k5$K2, dat_k5$K3, dat_k5$K4, dat_k5$K5)
+k6 <- cbind(dat_k6$K1,dat_k6$K2, dat_k6$K3, dat_k6$K4, dat_k6$K5, dat_k6$K6)
+k7 <- cbind(dat_k7$K1,dat_k7$K2, dat_k7$K3, dat_k7$K4, dat_k7$K5, dat_k7$K6, dat_k7$K7)
+k8 <- cbind(dat_k8$K1,dat_k8$K2, dat_k8$K3, dat_k8$K4, dat_k8$K5, dat_k8$K6, dat_k8$K7, dat_k8$K8)
+k9 <- cbind(dat_k9$K1,dat_k9$K2, dat_k9$K3, dat_k9$K4, dat_k9$K5, dat_k9$K6, dat_k9$K7, dat_k9$K8, dat_k9$K9)
+k10 <- cbind(dat_k10$K1,dat_k10$K2, dat_k10$K3, dat_k10$K4, dat_k10$K5, dat_k10$K6, dat_k10$K7, dat_k10$K8, dat_k10$K9, dat_k10$K10)
+
+dim(k2)
+head(k2)
+
+#make vetor for the space to be left between populations
+space_plot <- c(rep(0,(nrow(dat_k2[dat_k2$Population == "Rabensburg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolkersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hollabrunn",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolfsthal",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Bisamberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Gillaus",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Eckartsau",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "NDA",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Leopoldsberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Lainz",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hinterbrühl",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Zagersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Fidischer Wald",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Villach",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Königshof",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Weyer",])-1))
+)
+length(space_plot)
+dim(dat_k2)
+
+#?par()
+par(mfrow=c(8,1),
+    mai=c(0.1, 0.2, 0.1, 0.1))
+#par(mar = c(1,1,1,1))
+
+#par(mfrow=c(8,1))
+#par(family = "Arial", font = 25, font.lab = 25, font.axis = 25)
+#pdf("../Admix_K8_seed31.pdf", width = 7, height = 5)
+mycolors <- c( "#fbc6d6",  "#e47053",  "#a9c1ee",  "#4d3d4a",  "#ac7e8a",  "#efa1b9",  "#915b6c",  "#a18aa6", "#dc7c60", "#d8adb2")
+barplot(t(k2),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k2,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+
+barplot(t(k3),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k3,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k4),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k4,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k5),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k5,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k6),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k6,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k7),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k7,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k8),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k9),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k10),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+
+dat_k2 <- read.csv("Pyrus K2.csv")
+dat_k3 <- read.csv("Pyrus K3.csv")
+dat_k4 <- read.csv("Pyrus K4.csv")
+dat_k5 <- read.csv("Pyrus K5.csv")
+dat_k6 <- read.csv("Pyrus K6.csv")
+dat_k7 <- read.csv("Pyrus K7.csv")
+dat_k8 <- read.csv("Pyrus K8.csv")
+dat_k9 <- read.csv("Pyrus K9.csv")
+dat_k10 <- read.csv("Pyrus K10.csv")
+
+pop_k2 <- dat_k2$Population
+pop_k3 <- dat_k3$Population
+pop_k4 <- dat_k4$Population
+pop_k5 <- dat_k5$Population
+pop_k6 <- dat_k6$Population
+pop_k7 <- dat_k7$Population
+pop_k8 <- dat_k8$Population
+pop_k9 <- dat_k9$Population
+pop_k10 <- dat_k10$Population
+
+#Read inferred admixture proportions file
+k2 <- cbind(dat_k2$K1,dat_k2$K2)
+k3 <- cbind(dat_k3$K1,dat_k3$K2, dat_k3$K3)
+k4 <- cbind(dat_k4$K1,dat_k4$K2, dat_k4$K3, dat_k4$K4)
+k5 <- cbind(dat_k5$K1,dat_k5$K2, dat_k5$K3, dat_k5$K4, dat_k5$K5)
+k6 <- cbind(dat_k6$K1,dat_k6$K2, dat_k6$K3, dat_k6$K4, dat_k6$K5, dat_k6$K6)
+k7 <- cbind(dat_k7$K1,dat_k7$K2, dat_k7$K3, dat_k7$K4, dat_k7$K5, dat_k7$K6, dat_k7$K7)
+k8 <- cbind(dat_k8$K1,dat_k8$K2, dat_k8$K3, dat_k8$K4, dat_k8$K5, dat_k8$K6, dat_k8$K7, dat_k8$K8)
+k9 <- cbind(dat_k9$K1,dat_k9$K2, dat_k9$K3, dat_k9$K4, dat_k9$K5, dat_k9$K6, dat_k9$K7, dat_k9$K8, dat_k9$K9)
+k10 <- cbind(dat_k10$K1,dat_k10$K2, dat_k10$K3, dat_k10$K4, dat_k10$K5, dat_k10$K6, dat_k10$K7, dat_k10$K8, dat_k10$K9, dat_k10$K10)
+
+dim(k2)
+head(k2)
+
+#make vetor for the space to be left between populations
+space_plot <- c(rep(0,(nrow(dat_k2[dat_k2$Population == "Eckartsau",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "NDA",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolfsthal",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Rabensburg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolkersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Bisamberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hollabrunn",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Gillaus",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Leopoldsberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Lainz",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hinterbrühl",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Zagersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Fidischer Wald",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Villach",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Königshof",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Weyer",])-1))
+)
+length(space_plot)
+dim(dat_k2)
+
+#?par()
+par(mfrow=c(8,1),
+    mai=c(0.1, 0.2, 0.1, 0.1))
+#par(mar = c(1,1,1,1))
+
+#par(mfrow=c(8,1))
+#par(family = "Arial", font = 25, font.lab = 25, font.axis = 25)
+#pdf("../Admix_K8_seed31.pdf", width = 7, height = 5)
+mycolors <- c( "#fbc6d6",  "#e47053",  "#a9c1ee",  "#4d3d4a",  "#ac7e8a",  "#efa1b9",  "#915b6c",  "#a18aa6", "#dc7c60", "#d8adb2")
+barplot(t(k2),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k2,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+
+barplot(t(k3),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k3,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k4),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k4,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k5),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k5,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k6),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k6,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k7),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k7,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k8),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k9),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k10),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+
+dat_k2 <- read.csv("Cormus PP K2.csv")
+dat_k3 <- read.csv("Cormus PP K3.csv")
+dat_k4 <- read.csv("Cormus PP K4.csv")
+dat_k5 <- read.csv("Cormus PP K5.csv")
+dat_k6 <- read.csv("Cormus PP K6.csv")
+dat_k7 <- read.csv("Cormus PP K7.csv")
+dat_k8 <- read.csv("Cormus PP K8.csv")
+dat_k9 <- read.csv("Cormus PP K9.csv")
+dat_k10 <- read.csv("Cormus PP K10.csv")
+
+pop_k2 <- dat_k2$Population
+pop_k3 <- dat_k3$Population
+pop_k4 <- dat_k4$Population
+pop_k5 <- dat_k5$Population
+pop_k6 <- dat_k6$Population
+pop_k7 <- dat_k7$Population
+pop_k8 <- dat_k8$Population
+pop_k9 <- dat_k9$Population
+pop_k10 <- dat_k10$Population
+
+#Read inferred admixture proportions file
+k2 <- cbind(dat_k2$K1,dat_k2$K2)
+k3 <- cbind(dat_k3$K1,dat_k3$K2, dat_k3$K3)
+k4 <- cbind(dat_k4$K1,dat_k4$K2, dat_k4$K3, dat_k4$K4)
+k5 <- cbind(dat_k5$K1,dat_k5$K2, dat_k5$K3, dat_k5$K4, dat_k5$K5)
+k6 <- cbind(dat_k6$K1,dat_k6$K2, dat_k6$K3, dat_k6$K4, dat_k6$K5, dat_k6$K6)
+k7 <- cbind(dat_k7$K1,dat_k7$K2, dat_k7$K3, dat_k7$K4, dat_k7$K5, dat_k7$K6, dat_k7$K7)
+k8 <- cbind(dat_k8$K1,dat_k8$K2, dat_k8$K3, dat_k8$K4, dat_k8$K5, dat_k8$K6, dat_k8$K7, dat_k8$K8)
+k9 <- cbind(dat_k9$K1,dat_k9$K2, dat_k9$K3, dat_k9$K4, dat_k9$K5, dat_k9$K6, dat_k9$K7, dat_k9$K8, dat_k9$K9)
+k10 <- cbind(dat_k10$K1,dat_k10$K2, dat_k10$K3, dat_k10$K4, dat_k10$K5, dat_k10$K6, dat_k10$K7, dat_k10$K8, dat_k10$K9, dat_k10$K10)
+
+dim(k2)
+head(k2)
+
+#make vetor for the space to be left between populations
+space_plot <- c(rep(0,(nrow(dat_k2[dat_k2$Population == "Falkenstein",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Michelstetten",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hollabrunn",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolkersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Lainz",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Pressbaum",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Merkenstein",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Emmerberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Zagersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Königshof",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Weyer",])-1))
+)
+length(space_plot)
+dim(dat_k2)
+
+#?par()
+par(mfrow=c(8,1),
+    mai=c(0.1, 0.2, 0.1, 0.1))
+#par(mar = c(1,1,1,1))
+
+#par(mfrow=c(8,1))
+#par(family = "Arial", font = 25, font.lab = 25, font.axis = 25)
+#pdf("../Admix_K8_seed31.pdf", width = 7, height = 5)
+#mycolors <- c("#900c3f", "#182b55", "#5f4e94", "#a291c7", "#82cbec", "#2E494C", "#d94f21", "#febd2b", "#9aab4b")
+barplot(t(k2),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k2,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+
+barplot(t(k3),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k3,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k4),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k4,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k5),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k5,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k6),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k6,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k7),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k7,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k8),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k9),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k10),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+```
+
+```{r heterozysogisties of both species}
+# Reshape the data for plotting HI and HS
+data_hi_hs <- melt(data, id.vars = c("Population", "Species"), 
+                   measure.vars = c("HO", "HE"))
+# Plot HI and HS for both species with population on the x-axis
+hi_hs_plot <- ggplot(data = data_hi_hs, aes(x = Population, y = value, fill = Species)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.6), 
+           colour = "black", width = 0.8) +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_fill_manual(values = c("P. pyraster" = "#900c3f", "C. domestica" = "#3f90c4"),
+                    labels = c("P. pyraster", "C. domestica")) +
+  facet_wrap(~variable, scales = "free_y", labeller = labeller(variable = c(HI = "Heterozygosity within individuals (HI)", 
+                                                                           HS = "Heterozygosity within subpopulations (HS)"))) +
+  ylab("Heterozygosity") +  # Add y-axis label
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels for clarity
+        axis.ticks.x = element_blank(),
+        axis.line.y = element_line(size = 0.5),
+        legend.title = element_blank(),
+        legend.position = "top",  # Move the legend to the top
+        legend.text = element_text(size = 12),
+        panel.grid = element_blank(),
+        panel.background = element_blank()) +
+  geom_hline(yintercept = 0, colour = "black", size = 0.5)
+
+# Print the plot
+print(hi_hs_plot)
+```
+
+```{r pyrus test for significance rps}
+# Subset by species, for example, selecting only "P. pyraster"
+pyraster_data <- rpsdata %>% filter(Species == "P. pyraster")
+
+# Check correlation between 'Samples per Population' and other variables
+cor_results <- cor.test(pyraster_data$Samples.per.Population, pyraster_data$NA.)
+cor_results_nae <- cor.test(pyraster_data$Samples.per.Population, pyraster_data$NAe)
+cor_results_ar <- cor.test(pyraster_data$Samples.per.Population, pyraster_data$AR)
+
+# Print results
+print(cor_results)
+print(cor_results_nae)
+print(cor_results_ar)
+
+# Scatter plot for Samples per Population and NA
+ggplot(pyraster_data, aes(x = Samples.per.Population, y = NA.)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs NA",
+       x = "Samples per Population",
+       y = "NA") +
+  theme_minimal()
+
+# Scatter plot for Samples per Population and NAe
+ggplot(pyraster_data, aes(x = Samples.per.Population, y = NAe)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs NAe",
+       x = "Samples per Population",
+       y = "NAe") +
+  theme_minimal()
+
+# Scatter plot for Samples per Population and AR
+ggplot(pyraster_data, aes(x = Samples.per.Population, y = AR)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs AR",
+       x = "Samples per Population",
+       y = "AR") +
+  theme_minimal()
+```
+
+```{r cormus test for significance rps}
+# Subset by species, for example, selecting only "P. pyraster"
+domestica_data <- rpsdata %>% filter(Species == "C. domestica")
+
+# Check correlation between 'Samples per Population' and other variables
+cor_results <- cor.test(domestica_data$Samples.per.Population, domestica_data$NA.)
+cor_results_nae <- cor.test(domestica_data$Samples.per.Population, domestica_data$NAe)
+cor_results_ar <- cor.test(domestica_data$Samples.per.Population, domestica_data$AR)
+
+# Print results
+print(cor_results)
+print(cor_results_nae)
+print(cor_results_ar)
+
+# Scatter plot for Samples per Population and NA
+ggplot(domestica_data, aes(x = Samples.per.Population, y = NA.)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs NA",
+       x = "Samples per Population",
+       y = "NA") +
+  theme_minimal()
+
+# Scatter plot for Samples per Population and NAe
+ggplot(domestica_data, aes(x = Samples.per.Population, y = NAe)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs NAe",
+       x = "Samples per Population",
+       y = "NAe") +
+  theme_minimal()
+
+# Scatter plot for Samples per Population and AR
+ggplot(domestica_data, aes(x = Samples.per.Population, y = AR)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs AR",
+       x = "Samples per Population",
+       y = "AR") +
+  theme_minimal()
+```
+
+```{r pyrus test for significance ar and par}
+# Subset by species, for example, selecting only "P. pyraster"
+pyraster_data <- data %>% filter(Species == "P. pyraster")
+
+# Check correlation between 'Samples per Population' and other variables
+cor_results_ar <- cor.test(pyraster_data$Samples.per.Population, pyraster_data$AR)
+cor_results_par <- cor.test(pyraster_data$Samples.per.Population, pyraster_data$PAR)
+
+# Print results
+print(cor_results_ar)
+print(cor_results_par)
+
+# Scatter plot for Samples per Population and AR
+ggplot(pyraster_data, aes(x = Samples.per.Population, y = AR)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs AR",
+       x = "Samples per Population",
+       y = "AR") +
+  theme_minimal()
+
+# Scatter plot for Samples per Population and PAR
+ggplot(pyraster_data, aes(x = Samples.per.Population, y = PAR)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs PAR",
+       x = "Samples per Population",
+       y = "PAR") +
+  theme_minimal()
+```
+
+```{r cormus test for significance ar and par}
+# Subset by species, for example, selecting only "C. domestica"
+cormus_data <- data %>% filter(Species == "C. domestica")
+
+# Check correlation between 'Samples per Population' and other variables
+cor_results_ar <- cor.test(cormus_data$Samples.per.Population, cormus_data$AR)
+cor_results_par <- cor.test(cormus_data$Samples.per.Population, cormus_data$PAR)
+
+# Print results
+print(cor_results_ar)
+print(cor_results_par)
+
+# Scatter plot for Samples per Population and AR
+ggplot(cormus_data, aes(x = Samples.per.Population, y = AR)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs AR",
+       x = "Samples per Population",
+       y = "AR") +
+  theme_minimal()
+
+# Scatter plot for Samples per Population and PAR
+ggplot(cormus_data, aes(x = Samples.per.Population, y = PAR)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  labs(title = "Samples per Population vs PAR",
+       x = "Samples per Population",
+       y = "PAR") +
+  theme_minimal()
+```
+
+```{r citations}
+citation("stats")
+library(hierfstat)
+citation("hierfstat")
+citation()
+```
+
+```{r significance of HI/HS to FIS}
+# Ensure HI and HS columns are numeric
+data$HO <- as.numeric(data$HO)
+data$HE <- as.numeric(data$HE)
+
+# Calculate the HI/HS ratio and add it as a new column
+data$HO_HE_ratio <- with(data, HO / HE)
+
+# Check the updated dataset
+head(data)
+
+# Correlation test per population
+cor_results <- data %>%
+  group_by(Species) %>%
+  summarise(correlation = cor(HO_HE_ratio, FIS, method = "pearson"),  # Correlation coefficient
+            p_value = cor.test(HO_HE_ratio, FIS)$p.value)  # p-value
+
+# View correlation results
+print(cor_results)
+
+# Perform linear regression for each population
+lm_results <- data %>%
+  group_by(Species) %>%
+  summarise(model = list(lm(FIS ~ HO_HE_ratio, data = cur_data())),
+            summary = list(summary(lm(FIS ~ HO_HE_ratio, data = cur_data()))))
+
+# Extract coefficients and p-values from regression models
+lm_summaries <- lm_results %>%
+  mutate(coefficient = map_dbl(summary, ~ .$coefficients[2, 1]),
+         p_value = map_dbl(summary, ~ .$coefficients[2, 4]))
+
+# View regression results
+print(lm_summaries)
+
+# Scatterplot with a regression line for each population
+ggplot(data, aes(x = HO_HE_ratio, y = FIS, color = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, color = "black", linetype = "dashed") +
+  facet_wrap(~Species) +
+  xlab("HO/HE Ratio") +
+  ylab(expression(italic("F")[IS])) +
+  theme_minimal()
+```
+
+```{r cormus structure with pop prior}
+dat_k2 <- read.csv("Cormus PP K2.csv")
+dat_k3 <- read.csv("Cormus PP K3.csv")
+dat_k4 <- read.csv("Cormus PP K4.csv")
+dat_k5 <- read.csv("Cormus PP K5.csv")
+dat_k6 <- read.csv("Cormus PP K6.csv")
+dat_k7 <- read.csv("Cormus PP K7.csv")
+dat_k8 <- read.csv("Cormus PP K8.csv")
+dat_k9 <- read.csv("Cormus PP K9.csv")
+dat_k10 <- read.csv("Cormus PP K10.csv")
+
+pop_k2 <- dat_k2$Population
+pop_k3 <- dat_k3$Population
+pop_k4 <- dat_k4$Population
+pop_k5 <- dat_k5$Population
+pop_k6 <- dat_k6$Population
+pop_k7 <- dat_k7$Population
+pop_k8 <- dat_k8$Population
+pop_k9 <- dat_k9$Population
+pop_k10 <- dat_k10$Population
+
+#Read inferred admixture proportions file
+k2 <- cbind(dat_k2$K1,dat_k2$K2)
+k3 <- cbind(dat_k3$K1,dat_k3$K2, dat_k3$K3)
+k4 <- cbind(dat_k4$K1,dat_k4$K2, dat_k4$K3, dat_k4$K4)
+k5 <- cbind(dat_k5$K1,dat_k5$K2, dat_k5$K3, dat_k5$K4, dat_k5$K5)
+k6 <- cbind(dat_k6$K1,dat_k6$K2, dat_k6$K3, dat_k6$K4, dat_k6$K5, dat_k6$K6)
+k7 <- cbind(dat_k7$K1,dat_k7$K2, dat_k7$K3, dat_k7$K4, dat_k7$K5, dat_k7$K6, dat_k7$K7)
+k8 <- cbind(dat_k8$K1,dat_k8$K2, dat_k8$K3, dat_k8$K4, dat_k8$K5, dat_k8$K6, dat_k8$K7, dat_k8$K8)
+k9 <- cbind(dat_k9$K1,dat_k9$K2, dat_k9$K3, dat_k9$K4, dat_k9$K5, dat_k9$K6, dat_k9$K7, dat_k9$K8, dat_k9$K9)
+k10 <- cbind(dat_k10$K1,dat_k10$K2, dat_k10$K3, dat_k10$K4, dat_k10$K5, dat_k10$K6, dat_k10$K7, dat_k10$K8, dat_k10$K9, dat_k10$K10)
+
+dim(k2)
+head(k2)
+
+#make vetor for the space to be left between populations
+space_plot <- c(rep(0,(nrow(dat_k2[dat_k2$Population == "Falkenstein",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Michelstetten",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hollabrunn",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolkersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Lainz",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Pressbaum",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Merkenstein",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Emmerberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Zagersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Königshof",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Weyer",])-1))
+                )
+length(space_plot)
+dim(dat_k2)
+
+#?par()
+par(mfrow=c(8,1),
+    mai=c(0.1, 0.2, 0.1, 0.1))
+#par(mar = c(1,1,1,1))
+
+#par(mfrow=c(8,1))
+#par(family = "Arial", font = 25, font.lab = 25, font.axis = 25)
+#pdf("../Admix_K8_seed31.pdf", width = 7, height = 5)
+#mycolors <- c("#900c3f", "#182b55", "#5f4e94", "#a291c7", "#82cbec", "#2E494C", "#d94f21", "#febd2b", "#9aab4b")
+barplot(t(k2),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k2,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+        )
+
+barplot(t(k3),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k3,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k4),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k4,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k5),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k5,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k6),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k6,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k7),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k7,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k8),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k9),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k10),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+```
+
+```{r pyrus structure with pop prior}
+dat_k2 <- read.csv("Pyrus PP K2.csv")
+dat_k3 <- read.csv("Pyrus PP K3.csv")
+dat_k4 <- read.csv("Pyrus PP K4.csv")
+dat_k5 <- read.csv("Pyrus PP K5.csv")
+dat_k6 <- read.csv("Pyrus PP K6.csv")
+dat_k7 <- read.csv("Pyrus PP K7.csv")
+dat_k8 <- read.csv("Pyrus PP K8.csv")
+dat_k9 <- read.csv("Pyrus PP K9.csv")
+dat_k10 <- read.csv("Pyrus PP K10.csv")
+
+pop_k2 <- dat_k2$Population
+pop_k3 <- dat_k3$Population
+pop_k4 <- dat_k4$Population
+pop_k5 <- dat_k5$Population
+pop_k6 <- dat_k6$Population
+pop_k7 <- dat_k7$Population
+pop_k8 <- dat_k8$Population
+pop_k9 <- dat_k9$Population
+pop_k10 <- dat_k10$Population
+
+#Read inferred admixture proportions file
+k2 <- cbind(dat_k2$K1,dat_k2$K2)
+k3 <- cbind(dat_k3$K1,dat_k3$K2, dat_k3$K3)
+k4 <- cbind(dat_k4$K1,dat_k4$K2, dat_k4$K3, dat_k4$K4)
+k5 <- cbind(dat_k5$K1,dat_k5$K2, dat_k5$K3, dat_k5$K4, dat_k5$K5)
+k6 <- cbind(dat_k6$K1,dat_k6$K2, dat_k6$K3, dat_k6$K4, dat_k6$K5, dat_k6$K6)
+k7 <- cbind(dat_k7$K1,dat_k7$K2, dat_k7$K3, dat_k7$K4, dat_k7$K5, dat_k7$K6, dat_k7$K7)
+k8 <- cbind(dat_k8$K1,dat_k8$K2, dat_k8$K3, dat_k8$K4, dat_k8$K5, dat_k8$K6, dat_k8$K7, dat_k8$K8)
+k9 <- cbind(dat_k9$K1,dat_k9$K2, dat_k9$K3, dat_k9$K4, dat_k9$K5, dat_k9$K6, dat_k9$K7, dat_k9$K8, dat_k9$K9)
+k10 <- cbind(dat_k10$K1,dat_k10$K2, dat_k10$K3, dat_k10$K4, dat_k10$K5, dat_k10$K6, dat_k10$K7, dat_k10$K8, dat_k10$K9, dat_k10$K10)
+
+dim(k2)
+head(k2)
+
+#make vetor for the space to be left between populations
+space_plot <- c(rep(0,(nrow(dat_k2[dat_k2$Population == "Rabensburg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolkersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Wolfsthal",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hollabrunn",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Bisamberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Eckartsau",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "NDA",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Leopoldsberg",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Lainz",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Hinterbrühl",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Zagersdorf",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Fidischer Wald",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Villach",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Königshof",])-1)),
+                1,
+                rep(0,(nrow(dat_k2[dat_k2$Population == "Weyer",])-1))
+                )
+length(space_plot)
+dim(dat_k2)
+
+#?par()
+par(mfrow=c(8,1),
+    mai=c(0.1, 0.2, 0.1, 0.1))
+#par(mar = c(1,1,1,1))
+
+#par(mfrow=c(8,1))
+#par(family = "Arial", font = 25, font.lab = 25, font.axis = 25)
+#pdf("../Admix_K8_seed31.pdf", width = 7, height = 5)
+mycolors <- c( "#fbc6d6",  "#e47053",  "#a9c1ee",  "#4d3d4a",  "#ac7e8a",  "#efa1b9",  "#915b6c",  "#a18aa6", "#dc7c60", "#d8adb2")
+barplot(t(k2),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k2,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+        )
+
+barplot(t(k3),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k3,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k4),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k4,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k5),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k5,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k6),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k6,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k7),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k7,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+barplot(t(k8),
+        col = mycolors,
+        #transparent("#00798c",trans.val = 0.4)),
+        #names=pop_k8,
+        las=3,
+        cex.names=0.75, 
+        #xlab="Individuals", 
+        font = 25,
+        space=space_plot,
+        border = NA
+)
+```
+
+```{r geographic distance plots and calculations}
+library(geosphere)
+
+# Function to compute pairwise distances and summary statistics
+calculate_pairwise_stats <- function(locdata, species_name) {
+  # Subset species
+  subset_df <- locdata[locdata$Species == species_name, c("Longitude", "Latitude")]
+  
+  # Compute pairwise distance matrix (meters)
+  dist_matrix <- distm(as.matrix(subset_df), fun = distHaversine)
+  
+  # Extract unique pairwise distances (exclude diagonal and duplicates)
+  dist_values <- dist_matrix[lower.tri(dist_matrix)]
+  
+  # Compute statistics
+  return(data.frame(
+    Species = species_name,
+    Min_Distance_m = min(dist_values),
+    Mean_Distance_m = mean(dist_values),
+    Max_Distance_m = max(dist_values)
+  ))
+}
+
+# Compute for each species
+dist_C_domestica <- calculate_pairwise_stats(locdata, "C. domestica")
+dist_P_pyraster <- calculate_pairwise_stats(locdata, "P. pyraster")
+
+# Combine results
+pairwise_distance_summary <- rbind(dist_C_domestica, dist_P_pyraster)
+
+# Print results
+print(pairwise_distance_summary)
+
+# Function to compute pairwise distances
+calculate_pairwise_distances <- function(locdata, species_name) {
+  # Subset data for the species
+  subset_df <- locdata[locdata$Species == species_name, c("Sample.ID", "Longitude", "Latitude")]
+  
+  # Compute pairwise distance matrix
+  dist_matrix <- distm(as.matrix(subset_df[, c("Longitude", "Latitude")]), fun = distHaversine)
+  
+  # Convert to long format
+  pairwise_df <- as.data.frame(as.table(dist_matrix))
+  colnames(pairwise_df) <- c("Sample1", "Sample2", "Distance_m")
+  
+  # Remove duplicate distances (since it's symmetric) and self-distances (diagonal)
+  pairwise_df <- pairwise_df[pairwise_df$Sample1 != pairwise_df$Sample2, ]
+  
+  # Add species column
+  pairwise_df$Species <- species_name
+  
+  return(pairwise_df)
+}
+
+# Compute pairwise distances for each species
+dist_C_domestica <- calculate_pairwise_distances(locdata, "C. domestica")
+dist_P_pyraster <- calculate_pairwise_distances(locdata, "P. pyraster")
+
+# Create separate plots
+
+# Plot for C. domestica
+plot_domestica <- ggplot(dist_C_domestica, aes(x = as.numeric(row.names(dist_C_domestica)), y = Distance_m)) +
+  geom_point(color = "blue", alpha = 0.5) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(title = "Pairwise Distances for C. domestica",
+       x = "Pair Index", y = "Distance (m)") +
+  theme_minimal()
+
+# Plot for P. pyraster
+plot_pyraster <- ggplot(dist_P_pyraster, aes(x = as.numeric(row.names(dist_P_pyraster)), y = Distance_m)) +
+  geom_point(color = "red", alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Pairwise Distances for P. pyraster",
+       x = "Pair Index", y = "Distance (m)") +
+  theme_minimal()
+
+# Display plots separately
+print(plot_domestica)
+print(plot_pyraster)
+
+```
+
+```{r geographic distance plots and calculations populations}
+library(geosphere)
+library(ggplot2)
+library(dplyr)
+
+# Load data
+df <- read.csv("Cormus Pyrus Wild Locations.csv")
+
+# Check structure
+str(df)
+
+# Compute centroid (mean coordinates) for each population
+centroids <- df %>%
+  group_by(Species, Population) %>%
+  summarise(Longitude = mean(Longitude), Latitude = mean(Latitude), .groups = "drop")
+
+# Compute pairwise distances between populations for each species
+calculate_population_distances <- function(species_data) {
+  species_name <- unique(species_data$Species)
+  
+  # Compute distance matrix (between population centroids)
+  dist_matrix <- distm(species_data[, c("Longitude", "Latitude")], fun = distHaversine)
+
+  # Convert to long format
+  dist_df <- as.data.frame(as.table(dist_matrix))
+  colnames(dist_df) <- c("Population1", "Population2", "Distance_m")
+
+  # Remove self-distances (diagonal) and duplicates (since the matrix is symmetric)
+  dist_df <- dist_df[dist_df$Population1 != dist_df$Population2, ]
+
+  # Add species column
+  dist_df$Species <- species_name
+
+  return(dist_df)
+}
+
+# Separate by species and compute distances
+dist_C_domestica <- calculate_population_distances(centroids[centroids$Species == "C. domestica", ])
+dist_P_pyraster <- calculate_population_distances(centroids[centroids$Species == "P. pyraster", ])
+
+# Combine results
+pairwise_population_distances <- rbind(dist_C_domestica, dist_P_pyraster)
+
+# Print first few rows
+head(pairwise_population_distances)
+
+summary_stats <- pairwise_population_distances %>%
+  group_by(Species) %>%
+  summarise(
+    Min_Distance_m = min(Distance_m),
+    Mean_Distance_m = mean(Distance_m),
+    Max_Distance_m = max(Distance_m)
+  )
+
+# Print summary
+print(summary_stats)
+
+# Plot for C. domestica
+plot_domestica <- ggplot(dist_C_domestica, aes(x = Population1, y = Distance_m)) +
+  geom_point(color = "blue", alpha = 0.5) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(title = "Pairwise Population Distances for C. domestica",
+       x = "Population", y = "Distance (m)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot for P. pyraster
+plot_pyraster <- ggplot(dist_P_pyraster, aes(x = Population1, y = Distance_m)) +
+  geom_point(color = "red", alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Pairwise Population Distances for P. pyraster",
+       x = "Population", y = "Distance (m)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display plots
+print(plot_domestica)
+print(plot_pyraster)
+
+```
+
+```{r sequoia for sibships and dyad plot}
+# CORMUS
+# Load necessary packages
+library(sequoia)
+
+# Load the formatted genotype data
+geno <- read.csv("Cormus_Sequoia_Input_Fixed.csv", stringsAsFactors = FALSE)
+
+# Check if all values are numeric
+sapply(geno, function(x) any(!is.numeric(x)))
+
+# View unique genotype values
+unique_vals <- unique(as.vector(as.matrix(geno[,-1])))
+print(unique_vals)
+
+# Convert genotype data into the required format for Sequoia
+geno_matrix <- as.matrix(geno[,-1])  # Remove the Sample ID column
+rownames(geno_matrix) <- geno$Sample.ID  # Set row names to Sample IDs
+
+# Run Sequoia's sibship clustering function
+sibling_results <- GetMaybeRel(geno_matrix, Tfilter = 0.5)
+
+# Create a dyad plot to visualize inferred sibships
+PlotRelPairs(sibling_results, Plot="dyad")
+
+# Save the results to a CSV file
+write.csv(sibling_results, "Sequoia_Sibship_Results.csv", row.names=TRUE)
+
+cat("Sibship analysis completed. Results saved as 'Sequoia_Sibship_Results.csv'.")
+
+```
+
+```{r genetic diversity of both as metapopulations}
+library(adegenet)
+library(poppr)
+library(dplyr)
+library(hierfstat)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+library(tidyverse)
+library(ggpattern)
+library(pegas)
+
+# CORMUS
+
+# load files
+data <- read.csv("Cormus_Over7_WildInds_NoPopDesig.csv", header = TRUE, stringsAsFactors = FALSE)
+data <- read.csv("Cormus_All_WildInds_NoPopDesig.csv", header = TRUE, stringsAsFactors = FALSE)
+
+# Subset genotype data (remove Latitude and Longitude)
+geno = data[, 5:ncol(data)]
+ind = as.character(data$Sample.ID)
+site = as.character(data$Population)
+
+# Convert to genind object
+genind_obj = df2genind(geno, ploidy = 2, ind.names = ind, pop = site, ncode = 6)
+
+genind_obj$tab[1:5, 1:10]  # Check first few entries
+
+# Remove individuals with low genotyping success
+indmiss = propTyped(genind_obj, by = "ind")
+genind_obj = missingno(genind_obj, type = "geno", cutoff = 0.20)
+
+# Count unique multilocus genotypes
+mlg(genind_obj)
+
+# Check polymorphic loci
+isPoly(genind_obj) %>% summary
+
+# Calculate allelic richness
+allelic_richness = allelic.richness(genind2hierfstat(genind_obj))$Ar
+mean_allelic_richness = apply(allelic_richness, MARGIN = 2, FUN = mean)
+mean_allelic_richness
+# Mean OVer7 AR = 13.58333
+# Mean All Wild AR = 13.75
+
+# Calculate basic statistics
+basic_stats = basic.stats(genind_obj, diploid = TRUE)
+
+# Mean observed and expected heterozygosity
+Ho = apply(basic_stats$Ho, MARGIN = 2, FUN = mean, na.rm = TRUE)
+He = apply(basic_stats$Hs, MARGIN = 2, FUN = mean, na.rm = TRUE)
+
+# Standard errors for heterozygosity
+Ho_se = apply(basic_stats$Ho, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x)))
+He_se = apply(basic_stats$Hs, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x)))
+
+# Create a data frame
+Het_df = data.frame(Ho = Ho, He = He)
+Het_se_df = data.frame(Ho_se = Ho_se, He_se = He_se)
+
+# Print results
+print(Het_df)
+print(Het_se_df)
+# Over7 HO = 0.5570417	HE = 0.6322083
+# Over7 SE HO = 0.05151853	HE = 0.05316391
+# All Wild HO = 0.5552417	HE = 0.6312833	
+# All Wild SE HO = 0.05210186	HE = 0.05346958	
+
+# Calculate FIS value
+apply(basic_stats$Fis, MARGIN = 2, FUN = mean, na.rm = TRUE) %>%
+  round(digits = 3)
+apply(basic_stats$Fis, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x))) %>%
+  round(digits = 2)
+# Over7 FIS = 0.136
+# Over7 SE FIS = 0.04
+# All Wild FIS = 0.138
+# All Wild SE FIS = 0.04
+
+# PYRUS
+
+# load files
+data <- read.csv("Pyrus_Over7_WildInds_NoPopDesig.csv", header = TRUE, stringsAsFactors = FALSE)
+data <- read.csv("Pyrus_All_WildInds_NoPopDesig.csv", header = TRUE, stringsAsFactors = FALSE)
+
+# Subset genotype data (remove Latitude and Longitude)
+geno = data[, 5:ncol(data)]
+ind = as.character(data$Sample.ID)
+site = as.character(data$Population)
+
+# Convert to genind object
+genind_obj = df2genind(geno, ploidy = 2, ind.names = ind, pop = site, ncode = 6)
+geno = data[, 5:ncol(data)]
+ind = as.character(data$Sample.ID)
+site = as.character(data$Population)
+
+# Convert to genind object
+genind_obj = df2genind(geno, ploidy = 2, ind.names = ind, pop = site, ncode = 6)
+
+genind_obj$tab[1:5, 1:10]  # Check first few entries
+
+# Remove individuals with low genotyping success
+indmiss = propTyped(genind_obj, by = "ind")
+genind_obj = missingno(genind_obj, type = "geno", cutoff = 0.20)
+
+# Count unique multilocus genotypes
+mlg(genind_obj)
+
+# Find the duplicates
+dups = mlg.id(genind_obj)
+for (i in dups){ # for each element in the list object
+  if (length(dups[i]) > 1){ # if the length is greater than 1
+    print(i) # print individuals that are duplicates
+  }
+}
+
+# Check polymorphic loci
+isPoly(genind_obj) %>% summary
+
+# Calculate allelic richness
+allelic_richness = allelic.richness(genind2hierfstat(genind_obj))$Ar
+mean_allelic_richness = apply(allelic_richness, MARGIN = 2, FUN = mean)
+mean_allelic_richness
+# Mean Over7 AR = 20.90909
+# Mean All Wild AR = 21.27273
+
+# Calculate basic statistics
+basic_stats = basic.stats(genind_obj, diploid = TRUE)
+
+# Mean observed and expected heterozygosity
+Ho = apply(basic_stats$Ho, MARGIN = 2, FUN = mean, na.rm = TRUE)
+He = apply(basic_stats$Hs, MARGIN = 2, FUN = mean, na.rm = TRUE)
+
+# Standard errors for heterozygosity
+Ho_se = apply(basic_stats$Ho, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x)))
+He_se = apply(basic_stats$Hs, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x)))
+
+# Create a data frame
+Het_df = data.frame(Ho = Ho, He = He)
+Het_se_df = data.frame(Ho_se = Ho_se, He_se = He_se)
+
+# Print results
+print(Het_df)
+print(Het_se_df)
+# Over7 HO = 0.7316636	HE = 0.7847364
+# Over7 SE HO = 0.05771664	HE = 0.05655169	
+# All Wild HO = 0.7343364	HE = 0.7874
+# All Wild SE HO = 0.05799541	HE = 0.05658727	
+
+# Calculate FIS value
+apply(basic_stats$Fis, MARGIN = 2, FUN = mean, na.rm = TRUE) %>%
+  round(digits = 3)
+apply(basic_stats$Fis, MARGIN = 2, FUN = function(x) sd(x, na.rm = TRUE)/sqrt(length(x))) %>%
+  round(digits = 2)
+# Over7 FIS = 0.072
+# Over7 SE FIS = 0.02
+# All Wild FIS = 0.072
+# All Wild SE FIS = 0.02
+```
+
+```{r anovas}
+# Load Wild Only GenDiv
+data <- read.csv("GenDiv Wild Table.csv", header = TRUE, stringsAsFactors = FALSE)
+
+# Ensure Species is a factor
+data$Species <- as.factor(data$Species)
+
+# Run ANOVA for each variable
+anova_fis <- aov(FIS ~ Species, data = data)
+anova_ar <- aov(AR ~ Species, data = data)
+anova_hohe <- aov(HOHE ~ Species, data = data)
+anova_ho <- aov(HO ~ Species, data = data)
+anova_par <- aov(PAR ~ Species, data = data)
+
+# Print ANOVA summaries
+summary(anova_fis)
+#             Df  Sum Sq  Mean Sq F value Pr(>F)  
+# Species      1 0.01831 0.018308    5.91 0.0241 *
+# Residuals   21 0.06505 0.003098                 
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+summary(anova_ar)
+#             Df Sum Sq Mean Sq F value   Pr(>F)    
+# Species      1 30.366  30.366   170.3 1.53e-11 ***
+# Residuals   21  3.744   0.178                     
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+summary(anova_hohe)
+#             Df  Sum Sq  Mean Sq F value Pr(>F)  
+# Species      1 0.01442 0.014419   4.766 0.0405 *
+# Residuals   21 0.06354 0.003026                 
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+summary(anova_ho)
+#             Df  Sum Sq Mean Sq F value   Pr(>F)    
+# Species      1 0.14800 0.14800   91.98 4.01e-09 ***
+# Residuals   21 0.03379 0.00161                     
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+# Diagnostic plots
+summary(anova_par)
+#             Df Sum Sq Mean Sq F value Pr(>F)
+# Species      1 0.0877 0.08768   1.257  0.275
+# Residuals   21 1.4653 0.06978
+
+par(mfrow = c(2, 2))
+plot(anova_fis)
+par(mfrow = c(2, 2))
+plot(anova_ar)
+par(mfrow = c(2, 2))
+plot(anova_hohe)
+par(mfrow = c(2, 2))
+plot(anova_ho)
+
+# Post-hoc Tukey test if significant
+# if (summary(anova_fis)[[1]]["Pr(>F)"][1] < 0.05) {
+#     print(TukeyHSD(anova_fis))
+# }
+# if (summary(anova_ar)[[1]]["Pr(>F)"][1] < 0.05) {
+#     print(TukeyHSD(anova_ar))
+# }
+# if (summary(anova_hohe)[[1]]["Pr(>F)"][1] < 0.05) {
+#     print(TukeyHSD(anova_ho))
+# }
+
+# Non-Parametric Test
+kruskal.test(FIS ~ Species, data = data)
+# data:  FIS by Species
+# Kruskal-Wallis chi-squared = 4.8611, df = 1, p-value = 0.02747
+kruskal.test(AR ~ Species, data = data)
+# data:  AR by Species
+# Kruskal-Wallis chi-squared = 15.758, df = 1, p-value = 7.199e-05
+kruskal.test(HOHE ~ Species, data = data)
+# data:  HOHE by Species
+# Kruskal-Wallis chi-squared = 3.1126, df = 1, p-value = 0.07769
+
+# Weighted ANOVA
+(lm(FIS ~ Species, weights = Samples.per.Population, data = data))
+# Coefficients:
+#        (Intercept)  SpeciesP. pyraster  
+#           0.10321            -0.06066
+(lm(AR ~ Species, weights = Samples.per.Population, data = data))
+# Coefficients:
+#        (Intercept)  SpeciesP. pyraster  
+#              4.232               2.541
+(lm(HOHE ~ Species, weights = Samples.per.Population, data = data))
+# Coefficients:
+#        (Intercept)  SpeciesP. pyraster  
+#           0.90280             0.05131
+
+# Grouped Boxplots
+
+# Reshape data to long format for ggplot
+df_long <- melt(data, id.vars = "Species", measure.vars = c("FIS", "HO", "AR", "HOHE"),
+                variable.name = "Metric", value.name = "Value")
+
+# Create the boxplot
+ggplot(df_long, aes(x = Species, y = Value, fill = Metric)) +
+    geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.size = 2) +
+    facet_wrap(~ Metric, scales = "free_y") +  # Separate plots for FIS, AR, HO
+    scale_fill_manual(values = c("#a291c7",  "#82cbec",  "#d94f21", "#4d5626")) +  # Custom colors
+    theme_minimal() +
+    labs(title = "Comparison of Genetic Diversity Metrics by Species",
+         y = "Value",
+         x = "Species") +
+    theme(legend.position = "none",
+          strip.text = element_text(size = 12, face = "bold"),
+          axis.text = element_text(size = 10),
+          axis.title = element_text(size = 12))
+
+# Create the boxplot with separate facets for each species
+# ggplot(df_long, aes(x = Metric, y = Value, fill = Metric)) +
+#     geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.size = 2) +
+#     facet_wrap(~ Species) +  # Separate plots for C. domestica and P. pyraster
+#     scale_fill_manual(values = c("#FF5733", "#3498DB", "#2ECC71")) +  # Custom colors
+#     theme_minimal() +
+#     labs(title = "Genetic Diversity Metrics by Species",
+#          y = "Value",
+#          x = "Genetic Diversity Metric") +
+#     theme(legend.position = "none",
+#           strip.text = element_text(size = 12, face = "bold"),
+#           axis.text = element_text(size = 10),
+#           axis.title = element_text(size = 12))
+
+# Reshape data to long format, excluding AR
+df_long <- melt(data, id.vars = "Species", measure.vars = c("FIS", "HOHE"),
+                variable.name = "Metric", value.name = "Value")
+
+# Create the boxplot with separate facets for each species
+ggplot(df_long, aes(x = Species, y = Value, fill = Species)) +
+    geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.size = 2) +
+    facet_wrap(~ Metric, scales = "free_y") +  # Separate plots for C. domestica and P. pyraster
+    scale_fill_manual(values = c("#900c3f", "#182b55")) +  # Custom colors for FIS and HO
+    theme_minimal() +
+    labs(title = "Genetic Diversity Metrics by Species",
+         y = "Value",
+         x = "Genetic Diversity Metric") +
+    theme(legend.position = "none",
+          strip.text = element_text(size = 12, face = "bold"),
+          axis.text = element_text(size = 10),
+          axis.title = element_text(size = 12))
+
+shapiro.test(data$HO / data$HE)
+```
+
+```{r bottleneck data visualization}
+# Load your data
+df <- read.csv("Cormus Per Pop Bottleneck.csv")
+df <- read.csv("Pyrus Per Pop Bottleneck.csv")
+
+# Pivot data to long format for plotting
+df_long <- df %>%
+  select(Population, p_W_2t_IAM, p_W_2t_SMM) %>%
+  pivot_longer(cols = starts_with("p_W_2t"),
+               names_to = "Model",
+               values_to = "p_value") %>%
+  mutate(
+    Model = recode(Model,
+                   "p_W_2t_IAM" = "IAM",
+                   "p_W_2t_SMM" = "SMM"),
+    Significant = p_value < 0.05
+  )
+
+# Preserve original population order from CSV
+df_long$Population <- factor(df_long$Population, levels = df$Population)
+
+# Plot
+ggplot(df_long, aes(x = Population, y = p_value, fill = Model)) +
+  geom_col(position = "dodge") +
+  geom_hline(yintercept = 0.05, linetype = "dashed", color = "black") +
+  scale_fill_manual(values = c("IAM" = "#900c3f", "SMM" = "#182b55")) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(title = "BOTTLENECK Wilcoxon Test (Two-Tailed)",
+       x = "Population", y = "P-Value",
+       fill = "Mutation Model") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
