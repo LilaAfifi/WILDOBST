@@ -1,0 +1,803 @@
+```{r load packages}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r dplyr:::filter}
+dplyr:::filter
+useBytes = TRUE
+```
+
+```{r read in file}
+completeX <- read.csv("Complete DataX.csv", stringsAsFactors = FALSE, header = TRUE, sep = ",")
+```
+
+```{r getting the number of papers per species}
+parmeniacapapers <- filter(completeX, grepl('Prunus armeniaca', Species))
+paviumpapers <- filter(completeX, grepl('Prunus avium', Species))
+pbrigantinapapers <- filter(completeX, grepl('Prunus brigantina', Species))
+pcerasiferapapers <- filter(completeX, grepl('Prunus cerasifera', Species))
+pcerasuspapers <- filter(completeX, grepl('Prunus cerasus', Species))
+pcocomiliapapers <- filter(completeX, grepl('Prunus cocomilia', Species))
+pmahalebpapers <- filter(completeX, grepl('Prunus mahaleb', Species))
+pmicrocarpapapers <- filter(completeX, grepl('Prunus microcarpa', Species))
+ppaduspapers <- filter(completeX, grepl('Prunus padus', Species))
+pspinosapapers <- filter(completeX, grepl('Prunus spinosa', Species))
+pamygdaliformispapers <- filter(completeX, grepl('Pyrus amygdaliformis', Species))
+paustriacapapers <- filter(completeX, grepl('Pyrus austriaca', Species))
+pcommunispapers <- filter(completeX, grepl('Pyrus communis', Species))
+pcordatapapers <- filter(completeX, grepl('Pyrus cordata', Species))
+pelaeagnifoliapapers <- filter(completeX, grepl('Pyrus elaeagnifolia', Species))
+pnivalispapers <- filter(completeX, grepl('Pyrus nivalis', Species))
+ppyrasterpapers <- filter(completeX, grepl('Pyrus pyraster', Species))
+psosnovskyipapers <- filter(completeX, grepl('Pyrus sosnovskyi', Species))
+ckyrtostylapapers <- filter(completeX, grepl('Crataegus X kyrtostyla', Species))
+cmacrocarpapapers <- filter(completeX, grepl('Crataegus macrocarpa | Crataegus X marcrocarpa', Species))
+cmediapapers <- filter(completeX, grepl('Crataegus media | Crataegus X media', Species))
+ccoccineaepapers <- filter(completeX, grepl('Crataegus coccineae', Species))
+claevigatapapers <- filter(completeX, grepl('Crataegus laevigata', Species))
+cmonogynapapers <- filter(completeX, grepl('Crataegus monogyna', Species))
+crhipidophyllapapers <- filter(completeX, grepl('Crataegus rhipidophylla', Species))
+coblongapapers <- filter(completeX, grepl('Crataegus oblonga', Species))
+marnoldianapapers <- filter(completeX, grepl('Malus arnoldiana | Malus X arnoldiana', Species))
+mrobustapapers <- filter(completeX, grepl('Malus robusta | Malus X robusta', Species))
+mspectabilispapers <- filter(completeX, grepl('Malus spectabilis | Malus X spectabilis', Species))
+mbaccatapapers <- filter(completeX, grepl('Malus baccata', Species))
+mdomesticapapers <- filter(completeX, grepl('Malus domestica | Malus X domestica', Species))
+morientalispapers <- filter(completeX, grepl('Malus orientalis', Species))
+mpumilapapers <- filter(completeX, grepl('Malus pumila', Species))
+msieversiipapers <- filter(completeX, grepl('Malus sieversii', Species))
+msylvestrispapers <- filter(completeX, grepl('Malus sylvestris', Species))
+mtrilobatapapers <- filter(completeX, grepl('Malus trilobata', Species))
+mfloribundapapers <- filter(completeX, grepl('Malus floribunda | Malus X floribunda', Species))
+sslovenicapapers <- filter(completeX, grepl('Sorbus slovenica | Sorbus X slovenica', Species))
+sariapapers <- filter(completeX, grepl('Sorbus aria', Species))
+saustriacapapers <- filter(completeX, grepl('Sorbus austriaca', Species))
+schamaemespiluspapers <- filter(completeX, grepl('Sorbus chamaemespilus', Species))
+sdomesticapapers <- filter(completeX, grepl('Sorbus domestica | Sorbus X domestica', Species))
+sintermediapapers <- filter(completeX, grepl('Sorbus intermedia', Species))
+slatifoliapapers <- filter(completeX, grepl('Sorbus latifolia', Species))
+smougeotiipapers <- filter(completeX, grepl('Sorbus mougeotii', Species))
+storminalispapers <- filter(completeX, grepl('Sorbus torminalis', Species))
+###below not from original list but were included
+malinaepapers <- filter(completeX, grepl('Malinae', Species))
+napapers <- filter(completeX, grepl('NA', Species))
+pdomesticapapers <- filter(completeX, grepl('Prunus domestica', Species))
+pyspinosapapers <- filter(completeX, grepl('Pyrus spinosa', Species))
+saucupariapapers <- filter(completeX, grepl('Sorbus aucuparia', Species))
+scordigastensispapers <- filter(completeX, grepl('Sorbus cordigastensis', Species))
+slegreipapers <- filter(completeX, grepl('Sorbus legrei | Sorbus leigrei', Species))
+smilensispapers <- filter(completeX, grepl('Sorbus milensis', Species))
+squerneapapers <- filter(completeX, grepl('Sorbus quernea', Species))
+sremensispapers <- filter(completeX, grepl('Sorbus remensis', Species))
+sorbuspapers <- filter(completeX, grepl('Sorbus sp | Sorbus spp', Species))
+```
+
+```{r DO IT ALL OVER AGAIN THANKS TO MARTIN!}
+df <- completeX %>% group_by(Species) %>% count(Title) %>% count() %>% view()
+write.csv(df, file = "speciespapers.csv")
+df2 <- completeX %>% group_by(Study.Locale) %>% count(Title) %>% count() %>% view()
+write.csv(df2, file = "localepapers.csv")
+df3 <- completeX %>% group_by(Conservation.Recommendation) %>% count(Title) %>% count() %>% view()
+write.csv(df3, "conrecpapers.csv")
+df4 <- completeX %>% group_by(Number.of.Sites) %>% count(Title) %>% count() %>% view()
+write.csv(df4, file = "numsitepapers.csv")
+df5 <- completeX %>% group_by(Accessions) %>% count(Title) %>% count() %>% view()
+write.csv(df5, file = "accessionpapers.csv")
+df6 <- completeX %>% group_by(Individuals) %>% count(Title) %>% count() %>% view()
+write.csv(df6, file = "indivipapers.csv")
+df7 <- completeX %>% group_by(Cultivars) %>% count(Title) %>% count() %>% view()
+write.csv(df7, file = "cultpapers.csv")
+df8 <- completeX %>% group_by(Keyword) %>% count(Title) %>% count() %>% view()
+write.csv(df8, file = "keywordpapers.csv")
+df9 <- completeX %>% group_by(Threat) %>% count(Title) %>% count() %>% view()
+write.csv(df9, file = "threatpapers.csv")
+df10 <- completeX %>% group_by(Impact.of.Threat) %>% count(Title) %>% count() %>% view()
+write.csv(df10, file = "impactthreatpapers.csv")
+df11 <- completeX %>% group_by(Management.Recommendation) %>% count(Title) %>% count() %>% view()
+write.csv(df11, file = "mngmtrecpapers.csv")
+df12 <- completeX %>% group_by(Impact.of.Conservation.Recommendation) %>% count(Title) %>% count() %>% view()
+write.csv(df12, file = "impactconrec.csv")
+df13 <- completeX %>% group_by(Genetic.Topic) %>% count(Title) %>% count() %>% view()
+write.csv(df13, file = "gentoppapers.csv")
+df14 <- completeX %>% group_by(Population.Type) %>% count(Title) %>% count() %>% view()
+write.csv(df14, file = "poptypepapers.csv")
+df15 <- completeX %>% group_by(Data.Type) %>% count(Title) %>% count() %>% view()
+write.csv(df15, file = "datatypepapers.csv")
+df16 <- completeX %>% group_by(Habitat) %>% count(Title) %>% count() %>% view()
+write.csv(df16, file = "habitatpapers.csv")
+##this essentially joins and then unjoins the columns so that the proper count can be conducted by dplyr
+```
+
+```{r save files}
+save(completeX, file = "completeX.RData")
+```
+
+```{r cleaner data}
+cleanerdataX <- read.csv("Cleaner DataX.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+```{r create figure of papers per species}
+library(ggplot2)
+ggplot(cleanerdataX, aes(n, Species))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Papers per Species", x="Number of Papers", y="Species", y = guide_axis(n.dodge = -2))+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,75))+
+  theme(axis.text.y.left = element_text (size = 5))
+```
+
+```{r number of papers per location}
+library(ggplot2)
+ggplot(cleanerdataX, aes(n2, Study.Locale))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Papers per Locale", x="Number of Papers", y="Locale")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,50))+
+  theme(axis.text.y.left = element_text (size = 5))
+```
+
+```{r number of papers per genetic topic}
+library(ggplot2)
+ggplot(cleanerdataX, aes(n13, Genetic.Topic))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Papers per Genetic Topic", x="Number of Papers", y="Genetic Topic")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,120))+
+  theme(axis.text.y.left = element_text (size = 5))
+```
+
+```{r papers per keyword}
+library(ggplot2)
+ggplot(cleanerdataX, aes(n7, Keyword))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Papers per Keyword", x="Number of Papers", y="Keyword")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,45))+
+  theme(axis.text.y.left = element_text (size = 3))
+```
+
+```{r Okay let's make some consensus graphs}
+categoriesdata <- read.csv("CategoriesData.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+```{r plots of categories}
+library(ggplot2)
+ggplot(categoriesdata, aes(n, Threats))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Threats", x="Number of Papers", y="Threats")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,100))+
+  theme(axis.text.y.left = element_text (size = 8))
+ggplot(categoriesdata, aes(n2, Threat.Impacts))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Threat Impacts", x="Number of Papers", y="Threat Impacts")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,60))+
+  theme(axis.text.y.left = element_text (size = 8))
+ggplot(categoriesdata, aes(n3, Management.Recommendations))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Management Recommendations", x="Number of Papers", y="Management Recommendations")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,140))+
+  theme(axis.text.y.left = element_text (size = 8))
+ggplot(categoriesdata, aes(n4, Conservation.Recommendations))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Conservation Recommendations", x="Number of Papers", y="Conservation Recommendations")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,45))+
+  theme(axis.text.y.left = element_text (size = 8))
+ggplot(categoriesdata, aes(n5, Conservation.Recommendation.Impacts))+
+  geom_bar(stat = "identity")+
+  theme_bw()+
+  labs(title = "Conservation Recommendation Impacts", x="Number of Papers", y="Conservation Recommendation Impacts")+
+  scale_x_continuous(expand = c(0,0))+
+  coord_cartesian(xlim = c(0,70))+
+  theme(axis.text.y.left = element_text (size = 8))
+```
+
+```{r getting the correct counts}
+dfXXX <- completeX %>% group_by(Species) %>% count(Study.Locale) %>% count() %>% view()
+write.csv(dfXXX, file = "speciesincountries.csv")
+```
+
+```{r getting the correct counts}
+dfc <- completeX %>% group_by(Study.Locale) %>% count(Species) %>% count() %>% view()
+write.csv(dfc, file = "countrybyspp.csv")
+```
+
+```{r read in categorized papers}
+catpapers <- read.csv("CategorizedPapers.csv", header = TRUE,
+                      stringsAsFactors = FALSE)
+```
+
+```{r sd of papers per species}
+data(catpapers)
+na.omit(catpapers)
+ln <- catpapers$Species
+cat("The standard deviation of Species is: ", "\n")
+sd(ln, na.rm = FALSE)
+```
+
+```{r M Braun code}
+library(tidyverse)
+path <- "C:/Users/martin.braun/Documents/Projekte/Support/Lila/"
+cat <- clean$Study.Locale[!is.na(clean$Study.Locale)]
+reps <- clean$n2[!is.na(clean$n2)]
+locale <- rep(cat, reps)
+chisq.test(table(locale))
+# Be aware that given probabilities are assumed to be rep(1/length(x))
+# Basically you test if an outcome is different from expected probabilities
+```
+
+```{r Attempt Chi Sq Test}
+cats <- read.csv("CategoriesData.csv", header = TRUE,
+                 stringsAsFactors = FALSE)
+cat <- cats$Threats[!is.na(cats$Threats)]
+cat <- cat[1:6]
+reps <- cats$n[!is.na(cats$n)]
+threats <- rep(cat, reps)
+chisq.test(table(threats))
+```
+
+```{r Chi Sq Test}
+cat <- categoriesdata$Threats[!is.na(categoriesdata$Threats)]
+cat <- cat[1:5]
+reps <- categoriesdata$n[!is.na(categoriesdata$n)]
+threats <- rep(cat, reps)
+chisq.test(table(threats))
+```
+
+```{r load package and file}
+contingency <- read.csv("Contingency Table of Categories to Species.csv"
+                        , header = TRUE, stringsAsFactors = FALSE)
+#install.packages('rcompanion')
+#library(rcompanion)
+```
+
+```{r try Cramer's V}
+#create matrix
+data <- matrix(c(3, 10, 1, 0, 0, 0, 35, 5, 1, 62, 0, 1, 1, 0, 10, 0, 4, 2, 5, 0, 0, 8, 1, 0, 1, 3, 0, 0, 1, 21, 0, 0, 0, 2, 0, 0, 0, 47, 3, 6, 1, 0, 0, 0, 30, 5, 1, 59, 0, 1, 0, 0, 8, 0, 2, 2, 5, 0, 0, 7, 1, 0, 1, 3, 0, 0, 1, 16, 0, 0, 0, 1, 0, 0, 0, 39, 1, 18, 1, 2, 0, 0, 40, 7, 1, 99, 1, 4, 1, 4, 15, 2, 7, 12, 8, 0, 0, 9, 1, 0, 6, 6, 0, 0, 1, 30, 0, 1, 1, 0, 0, 1, 1, 70, 1, 11, 0, 0, 0, 0, 27, 2, 0, 43, 0, 0, 0, 0, 2, 1, 3, 4, 1, 0, 0, 4, 0, 0, 5, 3, 0, 0, 1, 19, 0, 1, 0, 3, 0, 0, 0, 42, 1, 9, 0, 0, 0, 0, 21, 2, 0, 32, 0, 1, 0, 0, 6, 1, 2, 4, 1, 0, 0, 4, 0, 0, 2, 3, 0, 0, 1, 19, 0, 1, 1, 0, 0, 1, 1, 42))
+mat1 <- matrix(data, ncol = 5)
+mat2 <- mat1[rowSums(mat1) != 0, ]
+
+#Cramer's V
+cramerV(mat2)
+```
+
+```{r Contingency Means, SD, and SE}
+contingency <- read.csv("Contingency Table of Categories to Species.csv"
+                        , header = TRUE, stringsAsFactors = FALSE)
+mean(contingency$Threats)
+mean(contingency$Threat.Impacts)
+mean(contingency$Management.Recommendations)
+mean(contingency$Conservation.Recommendations)
+mean(contingency$Conservation.Recommendation.Impacts)
+sd(contingency$Threats)
+sd(contingency$Threat.Impacts)
+sd(contingency$Management.Recommendations)
+sd(contingency$Conservation.Recommendations)
+sd(contingency$Conservation.Recommendation.Impacts)
+13.37263/(sqrt(224)) #threats
+11.9701/(sqrt(192)) #threat impacts
+10.42983/(sqrt(177)) #conservation recommendations
+9.087147/(sqrt(158)) #conservation recommendation impacts
+19.89297/(sqrt(358)) #management recommendations
+```
+
+```{r Subcats Means, SD, and SE}
+subcats <- read.csv("Contingency Table of Categories to Subcats.csv",
+                    header = TRUE, stringsAsFactors = FALSE)
+mean(subcats$Threats)
+mean(subcats$Threat.Impacts)
+mean(subcats$Conservation.Recs)
+mean(subcats$Conservation.Rec.Impacts)
+mean(subcats$Management.Recs)
+sd(subcats$Threats)
+sd(subcats$Threat.Impacts)
+sd(subcats$Conservation.Recs)
+sd(subcats$Conservation.Rec.Impacts)
+sd(subcats$Management.Recs)
+22.36419/(sqrt(177)) #threats
+14.49253/(sqrt(154)) #threat impacts
+13.9342/(sqrt(172)) #conservation recommendations
+15.92766/(sqrt(142)) #conservation recommendation impacts
+34.77259/(sqrt(350)) #management impacts
+```
+
+```{r Mean and SE of Subcats}
+categoriesdata <- read.csv("CategoriesData.csv", header = TRUE, 
+                           stringsAsFactors = FALSE)
+realcategoriesdata <- read.csv("CategoriesDataReal.csv", header = TRUE,
+                               stringsAsFactors = FALSE)
+##CategoriesData has the number of papers per category and total number of papers
+meansandse <- read.csv("Means and SE.csv", header = TRUE, 
+                       stringsAsFactors = FALSE)
+##Means and SE has the total papers associated per variable, percentage of papers per category within variable, and the M and SE of each variable, each SE was calculated by calculating first the SD was calculated in R and then the SE was manually calculated also using R
+
+##get rid of NAs
+na.omit(categoriesdata)
+
+##the below calculations are means for each variable
+177/5 #threats
+154/7 #threat impacts
+350/9 #mngmt recs
+172/7 #con recs
+142/6 #con rec impacts
+
+##create objects of the SD for each variable
+threats <- sd(categoriesdata$n)
+threatimps <- sd(categoriesdata$n2)
+mngmtrecs <- sd(categoriesdata$n3)
+conrecs <- sd(categoriesdata$n4) 
+conrecimps <- sd(categoriesdata$n5)
+
+##the below calculates the SE based on the established euation (SE = SD/sqrt(n))
+threats/(sqrt(177))
+threatimps/(sqrt(154))
+mngmtrecs/(sqrt(350))
+conrecs/(sqrt(172))
+conrecimps/(sqrt(142))
+```
+
+```{r SD and SE of Categories Data}
+catsdata <- read.csv("Means and SE.csv", header = TRUE, 
+                     stringsAsFactors = FALSE)
+threats <- sd(catsdata$Threats)
+threatimps <- sd(catsdata$Threat.Impacts)
+mngmtrecs <- sd(catsdata$Management.Recs)
+conrecs <- sd(catsdata$Conservation.Recs) 
+conrecimps <- sd(catsdata$Conservation.Rec.Impacts)
+threats/(sqrt(177))
+threatimps/(sqrt(154))
+mngmtrecs/(sqrt(350))
+conrecs/(sqrt(172))
+conrecimps/(sqrt(142))
+```
+
+```{r redo means, SE, SD}
+#calculations: 
+#M = total number of papers per variable/number of categories per variable
+#SD = sd(data$variable)
+#SE = SD/sqrt(number of papers per variable)
+
+#read in data files
+threat <- read.csv("threat.csv", header = TRUE, stringsAsFactors = FALSE)
+threatimps <- read.csv("threatimpacts.csv", header = TRUE, 
+                       stringsAsFactors = FALSE)
+conrecs <- read.csv("conrecommendations.csv", header = TRUE,
+                    stringsAsFactors = FALSE)
+conrecimps <- read.csv("conrecimpacts.csv", header = TRUE,
+                       stringsAsFactors = FALSE)
+mngmt <- read.csv("mngmtrecommendations.csv", header = TRUE,
+                  stringsAsFactors = FALSE)
+#M
+177/5 #threats
+154/7 #threat impacts
+350/9 #management recommendations
+172/7 #conservation recommendations
+142/6 #conservation recommendation impacts
+
+#SD
+t <- sd(threat$n)
+timps <- sd(threatimps$n2)
+conrec <- sd(conrecs$n3)
+cimps <- sd(conrecimps$n4)
+mngmtrec <- sd(mngmt$n5)
+
+#SE
+t/(sqrt(177))
+timps/(sqrt(154))
+conrec/(sqrt(172))
+cimps/(sqrt(142))
+mngmtrec/(sqrt(350))
+
+##manual calculation of SD
+#threats cat 1 (15-35.4)^2; cat 2 (94-35.4)^2; cat 3 (47-35.4)^2; cat 4 (12-35.4)^2; cat 5 (9-35.4)^2
+sdthreat <- sqrt((((15-35.4)^2)+((94-35.4)^2)+((47-35.4)^2)+((12-35.4)^2)+
+               ((9-35.4)^2))/5)
+
+##calculate SE
+sdthreat/(sqrt(177))
+```
+
+```{r make bar chart of total variables per genus}
+totals <- read.csv("totalvariablespergenus.csv", header = TRUE,
+                   stringsAsFactors = FALSE)
+library(ggplot2)
+library(viridis)
+
+total <- ggplot(totals, aes(fill = Variable, x = Value, y = Genus))+
+  geom_bar(position = "dodge", stat = "identity")+
+  scale_fill_viridis(discrete = TRUE)+
+  #ggtitle("Total Number of Variables per Taxon")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8))+
+  labs(y = "Taxon", x = "n", size = 10)
+plot(total)
+#ggsave("totalnumbervariablespergenus.png", total, width = 11, height = 8.5)
+```
+
+```{r read in files}
+byspecies <- read.csv("StackedBarSpp.csv", header = TRUE, 
+                      stringsAsFactors = FALSE)
+categorized <- read.csv("CategorizedPapers.csv", header = TRUE,
+                        stringsAsFactors = FALSE)
+require(tidyverse)
+require('reshape2')
+
+data_melt<-melt(categorized, id=c('Authors', 'Paper.Title', 'Year.Published', 'Genus', 'Species'))
+unique(data_melt$variable)
+unique(data_melt$value)
+
+
+data_melt$variable<-as.character(data_melt$variable)
+a<-data_melt %>% ungroup()%>% dplyr::group_by('Genus', 'Species','variable') %>% summarise(n=n())
+
+
+
+
+```
+
+```{r load libraries}
+library(tidyverse)
+library(viridisLite)
+library(ggplot2)
+```
+
+```{r create a circular stacked bar plot}
+data <- data.frame(
+  individual = paste("Crataegus Laevigata", "Crataegus monogyna", 
+                     "Cydonia oblonga", "Malinae", "Malus orientalus",
+                     "Malus sieversii", "Malus sylvestris", 
+                     "Malus X domestica", "Prunus armeniaca",
+                     "Prunus avium", "Prunus brigantina", 
+                     "Prunus cerasifera", "Prunus cerasus",
+                     "Prunus cocomilia", "Prunus domestica",
+                     "Prunus mahaleb", "Prunus microcarpa", 
+                     "Prunus padus", "Prunus spinosa", "Pyrus communis", 
+                     "Pyrus eleagnifolia", "Pyrus nivalis",
+                     "Pyrus pyraster", "Pyrus spinosa", "Sorbus",
+                     "Sorbus aria", "Sorbus aucuparia",
+                     "Sorbus austriaca", "Sorbus chamaemespilus",
+                     "Sorbus cordigastensis", "Sorbus domestica",
+                     "Sorbus intermedia", "Sorbus latifolia",
+                     "Sorbus legrei", "Sorbus milensis",
+                     "sorbus mougeotii", "Sorbus quernea", 
+                     "Sorbus remensis", "Sorbus torminalis", sep = ""),
+  group = c(rep('Crataegus', 2), rep('Cydonia', 1), rep('Malus', 5),
+            rep('Prunus', 11), rep('Pyrus', 5), rep('Sorbus', 15)),
+  Passive = c(1,2,0,0,0,0,5,0,0,6,0,0,0,0,0,1,0,3,2,0,0,0,0,0,0,5,2,
+              0,0,0,3,0,1,0,0,0,0,0,3),
+  Connectivity = c(0,2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                   0,0,0,0,0,3,0,0,0,0,0,0,0,7),
+  In.Situ = c(0,2,0,0,0,0,7,1,0,14,0,0,0,0,0,1,0,0,2,0,0,0,1,0,0,0,
+              1,0,0,1,3,0,0,0,2,0,0,0,10),
+  Ex.Situ = c(0,0,0,0,0,0,7,1,0,8,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+              0,0,0,4,0,0,0,0,0,0,0,10),
+  Genetic = c(0,3,0,0,0,0,5,0,0,9,0,0,0,0,0,0,1,0,0,1,0,0,2,0,0,0,0,
+              0,0,0,1,0,0,0,0,0,0,0,5),
+  Other = c(0,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,1,0,0,0,1),
+  Reproduction = c(0,1,0,0,0,0,1,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                   0,0,0,0,0,0,5,0,0,0,0,0,0,0,6)
+)
+
+# Transform data in a tidy format (long format)
+data <- data %>% gather(key = "observation", value="value", -c(1,2)) 
+ 
+# Set a number of 'empty bar' to add at the end of each group
+empty_bar <- 2
+nObsType <- nlevels(as.factor(data$observation))
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(data$group)*nObsType, ncol(data)) )
+colnames(to_add) <- colnames(data)
+to_add$group <- rep(levels(data$group), each=empty_bar*nObsType )
+data <- rbind(data, to_add)
+data <- data %>% arrange(group, individual)
+data$id <- rep( seq(1, nrow(data)/nObsType) , each=nObsType)
+ 
+# Get the name and the y position of each label
+label_data <- data %>% group_by(id, individual) %>% summarize(tot=sum(value))
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+ 
+# prepare a data frame for base lines
+base_data <- data %>% 
+  group_by(group) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+ 
+# prepare a data frame for grid (scales)
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+grid_data <- grid_data[-1,]
+ 
+# Make the plot
+p <- ggplot(data) +      
+  
+  # Add the stacked bar
+  geom_bar(aes(x=as.factor(id), y=value, fill=observation), stat="identity", alpha=0.5) +
+  scale_fill_viridis(discrete=TRUE) +
+  
+  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 50, xend = start, yend = 50), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 100, xend = start, yend = 100), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 150, xend = start, yend = 150), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  
+  # Add text showing the value of each 100/75/50/25 lines
+  ggplot2::annotate("text", x = rep(max(data$id),5), y = c(0, 50, 100, 150, 200), label = c("0", "50", "100", "150", "200") , color="grey", size=6 , angle=0, fontface="bold", hjust=1) +
+  
+  ylim(-150,max(label_data$tot, na.rm=T)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm") 
+  ) +
+  coord_polar() +
+  
+  # Add labels on top of each bar
+  geom_text(data=label_data, aes(x=id, y=tot+10, label=individual, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=5, angle= label_data$angle, inherit.aes = FALSE ) +
+  
+  # Add base line information
+  geom_segment(data=base_data, aes(x = start, y = -5, xend = end, yend = -5), colour = "black", alpha=0.8, size=0.6 , inherit.aes = FALSE )  +
+  geom_text(data=base_data, aes(x = title, y = -18, label=group), hjust=c(1,1,0,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE)
+
+
+# Save at png
+ggsave(p, file="output.png", width=10, height=10)
+
+# Received error: Error in `check_aesthetics()`:
+#! Aesthetics must be either length 1 or the same as the data (6): hjust
+```
+
+```{r Circular Stacked Bar Chart Reference Code}
+# library
+library(tidyverse)
+library(viridisLite)
+ 
+# Create dataset
+data <- data.frame(
+  individual=paste( "Mister ", seq(1,60), sep=""),
+  group=c( rep('A', 10), rep('B', 30), rep('C', 14), rep('D', 6)) ,
+  value1=sample( seq(10,100), 60, replace=T),
+  value2=sample( seq(10,100), 60, replace=T),
+  value3=sample( seq(10,100), 60, replace=T)
+)
+ 
+# Transform data in a tidy format (long format)
+data <- data %>% gather(key = "observation", value="value", -c(1,2)) 
+ 
+# Set a number of 'empty bar' to add at the end of each group
+empty_bar <- 2
+nObsType <- nlevels(as.factor(data$observation))
+to_add <- data.frame( matrix(NA, empty_bar*nlevels(data$group)*nObsType, ncol(data)) )
+colnames(to_add) <- colnames(data)
+to_add$group <- rep(levels(data$group), each=empty_bar*nObsType )
+data <- rbind(data, to_add)
+data <- data %>% arrange(group, individual)
+data$id <- rep( seq(1, nrow(data)/nObsType) , each=nObsType)
+ 
+# Get the name and the y position of each label
+label_data <- data %>% group_by(id, individual) %>% summarize(tot=sum(value))
+number_of_bar <- nrow(label_data)
+angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar     # I substract 0.5 because the letter must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+label_data$hjust <- ifelse( angle < -90, 1, 0)
+label_data$angle <- ifelse(angle < -90, angle+180, angle)
+ 
+# prepare a data frame for base lines
+base_data <- data %>% 
+  group_by(group) %>% 
+  summarize(start=min(id), end=max(id) - empty_bar) %>% 
+  rowwise() %>% 
+  mutate(title=mean(c(start, end)))
+ 
+# prepare a data frame for grid (scales)
+grid_data <- base_data
+grid_data$end <- grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+grid_data$start <- grid_data$start - 1
+grid_data <- grid_data[-1,]
+ 
+# Make the plot
+p <- ggplot(data) +      
+  
+  # Add the stacked bar
+  geom_bar(aes(x=as.factor(id), y=value, fill=observation), stat="identity", alpha=0.5) +
+  #scale_fill_viridis(discrete=TRUE) +
+  
+  # Add a val=100/75/50/25 lines. I do it at the beginning to make sur barplots are OVER it.
+  geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 50, xend = start, yend = 50), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 100, xend = start, yend = 100), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 150, xend = start, yend = 150), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  geom_segment(data=grid_data, aes(x = end, y = 200, xend = start, yend = 200), colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+  
+  # Add text showing the value of each 100/75/50/25 lines
+  ggplot2::annotate("text", x = rep(max(data$id),5), y = c(0, 50, 100, 150, 200), label = c("0", "50", "100", "150", "200") , color="grey", size=6 , angle=0, fontface="bold", hjust=1) +
+  
+  ylim(-150,max(label_data$tot, na.rm=T)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm") 
+  ) +
+  coord_polar() +
+  
+  # Add labels on top of each bar
+  geom_text(data=label_data, aes(x=id, y=tot+10, label=individual, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=5, angle= label_data$angle, inherit.aes = FALSE ) +
+  
+  # Add base line information
+  geom_segment(data=base_data, aes(x = start, y = -5, xend = end, yend = -5), colour = "black", alpha=0.8, size=0.6 , inherit.aes = FALSE )  +
+  geom_text(data=base_data, aes(x = title, y = -18, label=group), hjust=c(1,1,0,0), colour = "black", alpha=0.8, size=4, fontface="bold", inherit.aes = FALSE)
+
+
+# Save at png
+ggsave(p, file="output.png", width=10, height=10)
+```
+
+```{r stacked bar charts}
+#simple stacked reference code
+# library
+library(ggplot2)
+ 
+# create a dataset
+specie <- c(rep("sorgho" , 3) , rep("poacee" , 3) , rep("banana" , 3) , rep("triticum" , 3) )
+condition <- rep(c("normal" , "stress" , "Nitrogen") , 4)
+value <- abs(rnorm(12 , 0 , 15))
+data <- data.frame(specie,condition,value)
+ 
+# Stacked
+ggplot(data, aes(fill=condition, y=value, x=specie)) + 
+    geom_bar(position="stack", stat="identity")
+
+#percent stacked reference code
+ # library
+library(ggplot2)
+ 
+# create a dataset
+specie <- c(rep("sorgho" , 3) , rep("poacee" , 3) , rep("banana" , 3) , rep("triticum" , 3) )
+condition <- rep(c("normal" , "stress" , "Nitrogen") , 4)
+value <- abs(rnorm(12 , 0 , 15))
+data <- data.frame(specie,condition,value)
+ 
+# Stacked + percent
+ggplot(data, aes(fill=condition, y=value, x=specie)) + 
+    geom_bar(position="fill", stat="identity")
+```
+
+```{r multiple box plots in one chart + read in files}
+#data to load
+species <- read.csv("Contingency Table of Categories to Species.csv", 
+                    header = TRUE, stringsAsFactors = FALSE)
+subcat <- read.csv("Contingency Table of Categories to Subcats.csv",
+                   header = TRUE, stringsAsFactors = FALSE)
+
+#create box plot that displays paper distribution for each spp base R
+boxplot(Threats~Species,
+data = species,
+main = "Paper Distribution Per Species",
+xlab ="Species",
+ylab ="Threats",
+col ="steelblue",
+border ="black")
+#ugly honestly
+
+#create box plot with ggplot
+library(ggplot2)
+ggplot(data = subcat, aes(x = Threats, y = X)) +
+  geom_boxplot(fill = "grey") +
+  labs(x = "Threats", y = "Subcategory")
+#seems really iffy
+
+ggplot(data = species, aes(x = Threats, y = Species)) +
+  geom_boxplot(fill = "grey") +
+  labs(x = "Threats", y = "Species")
+#this has gotta be fake honestly
+```
+
+```{r M, SD, SE for subcats and species FINAL}
+#calculations: 
+#M = total number of papers per variable/number of categories per variable
+#SD = sd(data$variable)
+#SE = SD/sqrt(number of papers per variable)
+
+#M Subcats
+177/5 #threats
+154/7 #threat impacts
+350/9 #management recommendations
+172/7 #conservation recommendations
+142/6 #conservation recommendation impacts
+
+#M Species
+224/21 #threats
+192/20 #threat impacts
+358/30 #management recommendations
+177/19 #conservation recommendations
+158/22 #conservation recommendation impacts
+
+#SD Subcats
+sd(subcat$Threats)
+sd(subcat$Threat.Impacts)
+sd(subcat$Management.Recs)
+sd(subcat$Conservation.Recs)
+sd(subcat$Conservation.Rec.Impacts)
+
+#SD Species
+sd(species$Threats)
+sd(species$Threat.Impacts)
+sd(species$Management.Recommendations)
+sd(species$Conservation.Recommendations)
+sd(species$Conservation.Recommendation.Impacts)
+
+#SE Subcats
+22.36419/(sqrt(177)) #threats
+14.49253/(sqrt(154)) #threat impacts
+34.77259/(sqrt(350)) #management recommendations
+13.9342/(sqrt(172)) #conservation recommendations
+15.92766/(sqrt(142)) #conservation recommendation impacts
+
+#SE Species
+13.23128/(sqrt(224)) #threats
+11.84126/(sqrt(192)) #threat impacts
+19.68593/(sqrt(358)) #management recommendations
+10.32023/(sqrt(177)) #conservation recommendations
+8.992732/(sqrt(158)) #conservation recommendation impacts
+```
+
+```{r Cramer's V Test Subcats and Species}
+#install.packages("rcompanion")
+library(rcompanion)
+#create matrix of species per category
+data <- matrix(c(3, 10, 1, 0, 0, 0, 35, 5, 1, 62, 0, 1, 0, 1, 0, 10, 0, 4, 2, 5, 0, 0, 8, 1, 0, 0, 1, 3, 0, 0, 1, 21, 0, 0, 0, 2, 0, 0, 0, 47, 3, 6, 1, 0, 0, 0, 30, 5, 1, 59, 0, 1, 0, 0, 0, 8, 0, 2, 2, 5, 0, 0, 7, 1, 0, 0, 1, 3, 0, 0, 1, 16, 0, 0, 0, 1, 0, 0, 0, 39, 1, 18, 1, 2, 0, 0, 40, 7, 1, 99, 1, 1, 3, 1, 4, 15, 2, 7, 12, 8, 0, 0, 9, 1, 8, 0, 6, 6, 0, 0, 1, 30, 0, 1, 1, 0, 0, 1, 1, 70, 1, 11, 0, 0, 0, 0, 27, 2, 0, 43, 0, 0, 0, 0, 0, 2, 1, 3, 4, 1, 0, 0, 4, 0, 4, 0, 5, 3, 0, 0, 1, 19, 0, 1, 0, 3, 0, 0, 0, 42, 1, 9, 0, 0, 0, 0, 21, 2, 0, 32, 0, 0, 1, 0, 0, 6, 1, 2, 4, 1, 0, 0, 4, 0, 3, 0, 2, 3, 0, 0, 1, 19, 0, 1, 1, 0, 0, 1, 1, 42))
+mat1 <- matrix(data, ncol = 5)
+mat2 <- mat1[rowSums(mat1) != 0, ]
+
+#Cramer's V
+cramerV(mat2)
+
+#create matrix of subcategory per category
+data2 <- matrix(c(0, 0, 0, 0, 94, 0, 0, 47, 0, 0, 9, 0, 0, 12, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 2, 18, 0, 0, 59, 0, 0, 12, 0, 18, 0, 27, 0, 0, 0, 0, 0, 18, 0, 0, 13, 0, 0, 30, 0, 27, 43, 0, 5, 36, 0, 0, 0, 0, 18, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 69, 0, 0, 17, 0, 0, 0, 0, 26, 0, 0, 8, 12, 0, 0, 14, 0, 0, 0, 16, 138, 43, 0, 60, 1, 71, 2, 0, 0, 0, 0, 5, 0, 0, 0))
+mat3 <- matrix(data2, ncol = 5)
+mat4 <- mat3[rowSums(mat3) != 0, ]
+
+#Cramer's V
+cramerV(mat4)
+```
+
+```{r genetic groupings plot}
+#Libraries
+library(ggplot2)
+library(dplyr)
+library(viridis)
+
+#The dataset is provided in the gapminder library
+#library(gapminder)
+#data <- gapminder %>% filter(year=="2007") %>% dplyr::select(-year)
+
+#read in data
+gentops <- read.csv("Appendix_Genetic_topics.csv", header = TRUE,
+                    stringsAsFactors = FALSE)
+
+#make bubble plot
+#ggplot(gentops, aes(x = Genetic.Topic, y = Number.of.Papers.1)) +
+ # geom_histogram()
+

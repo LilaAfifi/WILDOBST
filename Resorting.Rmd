@@ -1,0 +1,30 @@
+---
+title: "Re-Sorting the 8489"
+output: html_notebook
+---
+
+```{r loading libraries}
+library(dplyr)
+dplyr ::: filter
+useBytes = TRUE
+```
+
+```{r read in CSVs}
+both <- read.csv("8489 and 5399.csv", header = TRUE, stringsAsFactors = FALSE)
+rejectsinboth <- read.csv("5399 rejects in 8489.csv", header = TRUE, stringsAsFactors = FALSE)
+acceptedinboth <- read.csv("5399 accepted in 8489.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+```{r filter for only articles and reviews}
+bothaj <- filter(both, grepl('Article|Review', Document.Type))
+```
+
+```{r get rid of duplicates}
+distinctboth <- unique(bothaj$Title)
+```
+
+```{r just trying to install MetBrewer}
+install.packages("devtools")
+devtools:::install_github("BlakeRMills/MetBrewer")
+```
+
